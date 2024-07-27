@@ -1,0 +1,46 @@
+Comment[ArrayExpressAccession]	E-MTAB-13804
+MAGE-TAB Version	1.1
+Comment[Submitted Name]	Transcriptomic signatures of progressive and regressive liver fibrosis and portal hypertension
+Investigation Title	Transcriptomic signatures of progressive and regressive liver fibrosis and portal hypertension
+Experiment Description	Persistent liver injury triggers a fibrogenic program that causes pathologic remodelling of the hepatic microenvironment (i.e., liver fibrosis) and portal hypertension. The dynamics of gene regulation during liver disease progression and regression remain understudied. Here, we generated hepatic transcriptome profiles in two well-established liver disease models at peak fibrosis and during spontaneous regression after the removal of the inducing agents. We linked the dynamics of key liver disease readouts, such as portal pressure, collagen proportionate area, and transaminase serum levels, to most differentially expressed genes, enabling the identification of transcriptomic signatures of progressive vs. regressive liver fibrosis and portal hypertension. These candidate biomarkers (e.g., Scube1, Tcf4, Src, Hmga1, Trem2, Mafk, Mmp7) were also validated in RNA-seq datasets of patients with cirrhosis and portal hypertension. Finally, deconvolution analysis identified major cell types and suggested an association of macrophage and portal hepatocyte signatures with portal hypertension and fibrosis area in both models.
+Experimental Design	case control design
+Experimental Design Term Source REF	EFO
+Experimental Design Term Accession Number	EFO:0001427
+Experimental Factor Name	disease	stimulus	sample group
+Experimental Factor Type	disease	stimulus	sample group
+Experimental Factor Term Source REF	EFO
+Experimental Factor Term Accession Number	EFO_0000408
+Person Last Name	Petrenko
+Person First Name	Oleksandr
+Person Mid Initials
+Person Email	oleksandr.petrenko@meduniwien.ac.at
+Person Phone
+Person Fax
+Person Address	Waehringer Guertel 18-20, Vienna, 1090, Austria
+Person Affiliation	Medical University of Vienna
+Person Roles	data analyst;experiment performer;submitter
+Date of Experiment	2023-02-01
+Public Release Date	2024-02-13
+PubMed ID
+Publication DOI
+Publication Author List
+Publication Title
+Publication Status
+Publication Status Term Source REF
+Publication Status Term Accession Number
+Protocol Name	P-MTAB-140705	P-MTAB-140706	P-MTAB-140707	P-MTAB-140708	P-MTAB-140709	P-MTAB-140710	P-MTAB-140711
+Protocol Type	sample collection protocol	nucleic acid extraction protocol	nucleic acid library construction protocol	nucleic acid sequencing protocol	treatment protocol	normalization data transformation protocol	high throughput sequence alignment protocol
+Protocol Term Source REF	EFO	EFO	EFO	EFO	EFO	EFO	EFO
+Protocol Term Accession Number	EFO_0005518	EFO_0002944	EFO_0004184	EFO_0004170	EFO_0003969	EFO_0003816	EFO_0004917
+Protocol Description	Animal experiments were performed in accordance to the approval by the Austrian Federal Ministry of Education, Science and Research (BMBWF-V/3b/2020-0.398.007). The organs of Mus musculus C57BL/6J were collected after acquiring the study measurements and following euthanasia under anesthesia between mid-May and mid-June 2021, and stored at -80°C prior to RNA extraction. 	Each sample represents total RNA from murine liver, extracted using QIAGEN RNA Easy Mini Kit, and stored in -80°C prior to submission.	The library preparation was done with a TruSeq Stranded mRNA LT sample preparation kit (Illumina, CA, USA). 	Samples were diluted, pooled into next-generation sequencing (NGS) libraries in equimolar amounts, and sequenced on Illumina HiSeq 4000 Systems (single-end, 50bp).	Fibrosis was induced by the administration of carbon tetrachloride (CCl4) or thioacetamide (TAA). CCl4 was gavaged as a 20% v/v solution in olive oil at a dose of 2 mL/kg body weight three times a week. TAA was injected intraperitoneally in 0.9% saline at a dose of 150 mg/kg thrice a week. The dose was gradually increased over the first week for CCl4 administration and over the first two weeks for TAA administration. The total time of fibrosis induction was 12 weeks, followed by one or two weeks of regression. 	Count normalization with variance stabilizing transformation was performed using DESeq2 method.	The alignment was performed to Mus musculus GRCm38/mm10 Reference Genome Assembly
+Protocol Hardware	n/a	n/a		Illumina HiSeq 4000	n/a	CeMM HPC	CeMM HPC
+Protocol Software						DESeq2
+Term Source Name	EFO
+Term Source File	http://www.ebi.ac.uk/efo/
+Term Source Version
+Comment[AEExperimentType]	RNA-seq of coding RNA
+Comment[TemplateType]	Animal - High-throughput sequencing
+Comment[RelatedExperiment]	PRJEB63606
+Comment[SecondaryAccession]	ERP157416
+Comment[SequenceDataURI]	http://www.ebi.ac.uk/ena/data/view/ERR12654210-ERR12654305
+SDRF File	E-MTAB-13804.sdrf.txt
