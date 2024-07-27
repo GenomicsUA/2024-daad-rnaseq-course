@@ -66,12 +66,12 @@ opts_chunk[["set"]](
 
 # setwd("02_classes/03_rnaseq_intro_part1/")
 counts_csv <- "../../01_data/count_matrix_raw.csv"
-counts_tpm_csv <- "../../01_data/count_matrix_tpm.csv"
+#counts_tpm_csv <- "../../01_data/count_matrix_tpm.csv"
 
 if (file.exists(counts_csv)){
     counts <- read_csv(counts_csv) 
     colnames(counts)[1] <- "gene_name"
-    counts_tpm <- read_csv(counts_tpm_csv)
+    #counts_tpm <- read_csv(counts_tpm_csv)
 }
 ```
 
