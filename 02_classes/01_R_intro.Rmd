@@ -646,6 +646,10 @@ https://carriebrown.github.io/r-novice-gapminder/challenges/
 Хороші звичкі при написанні коду
 https://www.r-bloggers.com/2018/09/r-code-best-practices/
 
+Щоб краще розуміти Renv і R project
+https://support.posit.co/hc/en-us/articles/200526207-Using-RStudio-Projects
+https://www.appsilon.com/post/renv-how-to-manage-dependencies-in-r
+
 ###Вивчені функції
 
 print() unction prints its arguments in console.
@@ -698,4 +702,4 @@ apply() returns a vector or array or list of values obtained by applying a funct
 
 sapply() returns modified by function vector or matrix.
 
-runif()
+runif() generate a number of n random samples within any interval, defined by the min and the max argument.
