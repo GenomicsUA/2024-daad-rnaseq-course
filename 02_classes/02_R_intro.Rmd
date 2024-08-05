@@ -13,9 +13,9 @@ knitr::opts_chunk$set(eval = FALSE)
 
 #####Структура воркшопу 
 * Вправа на інтерпритацію коду
-* Зберігти і завантажити дані 
+* Зберегти і завантажити дані 
 * Дослідження даних
-* Візуалізація: на колінках і для звітів
+* Візуалізація: на колінах і для звітів
 * Вступ до Tidyverse
 * Практична
 
@@ -133,7 +133,7 @@ for (i in 1:num_of_itterations){
 Рекомендується досліджувати набір даних перед аналізом. Це дає вам розуміти дані та перевірити, чи щось з ними не так. Як приклад набору даних ми будемо використовувати *mtcars*. Запустіть наступний код і подивіться на праве нижнє вікно, щоб дізнатися більше про набір даних.
 
 ```{r}
-#dataset help
+#data set help
 
 ```
 
@@ -175,6 +175,7 @@ for (i in 1:num_of_itterations){
 
 ```{r}
 # check if there's any NA or NaN values
+# arr.ind	- logical; should array indices be returned when x is an array?
 
 ```
 
@@ -338,7 +339,7 @@ R base дозволяє робити прості візуалізації. Ал
 
 ###Tidyverse
 
-Tidyverse - це набір пакетів для написання "охайного" коду.
+Tidyverse - це набір пакетів для написання "охайного" коду. Всесвіт пакетів tidyverse - це набір пакетів, спеціально орієнтованих на data science.
 
 Більшість строк коду у цьому курсі, під час аналізу даних РНК-секвенування, написані у стилі Tidyverse.
 
@@ -359,6 +360,9 @@ VS
 
 ```{r}
 #install Tidyverse
+
+
+#if problems arise, load dplyr and readr
 
 ```
 
@@ -464,11 +468,11 @@ VS
 ```
 
 ```{r}
-#Find rows that appear in first dataset and not in second
+#Find rows that appear in first data set and not in second
 ```
 
 ```{r}
-#Make a new column without retaining origional
+#Make a new column without retaining original
 ```
 
 ###Опціонально: додаткові посилання
@@ -477,37 +481,64 @@ VS
 2. https://github.com/rstudio/cheatsheets/blob/main/data-visualization.pdf
 
 ###Вивчені функції
-seq()
-Sys.time()
-Sys.sleep()
-data()
-write.table()
-write.csv()
-read.table()
-dim()
-head()
-tail()
-str()
-View()
-duplicated()
-unique()
-table()
-order()
+seq() generate regular numerical sequences
+
+Sys.time() returns the system's idea of the current date with and without time
+
+Sys.sleep() suspend execution of R expressions for a specified time interval
+
+data() loads specified data sets, or list the available data sets
+
+write.table(), write.csv()  prints its required argument x (after converting it to a data frame if it is not one nor a matrix) to a file
+
+read.table() reads a file in table format and creates a data frame from it
+
+dim() retrieve or set the dimension of an object
+
+head(), tail() returns the first or last parts of a vector, matrix, table, data frame or function
+
+str() compactly display the internal structure of an R object
+
+View() invoke a spreadsheet-style data viewer on a matrix-like R object
+
+duplicated() determines which elements of a vector or data frame are duplicates of elements, returns a logical vector
+
+unique() returns a vector, data frame or array like x but with duplicate elements/rows removed
+
+table() returns number of each element
+
+order() returns a permutation which rearranges its first argument into ascending or descending order
+
 plot()
+
 points()
+
 hist()
-par()
-dev.off()
-jpeg()
+
+par() can be used to set or query graphical parameters
+
+dev.off() shuts down the specified (by default the current) graph
+
+jpeg() saves a graph in jpeg format
+
 heatmap()
-tidyverse_packages()
-read_csv()
-read_tsv()
-write_csv()
-tibble()
-select()
-rename()
-mutate()
-filter()
+
+tidyverse_packages() list all packages in the tidyverse
+
+read_csv(), read_tsv() reading the most common types of flat file data
+
+write_csv() unlike write.csv(), these functions do not include row names as a column in the written file
+
+tibble() constructs a data frame. It is used like base::data.frame(), but with a couple notable differences
+
+select() select (and optionally rename) variables in a data frame
+
+rename() changes the names of individual variables using new_name = old_name syntax
+
+mutate() creates new columns that are functions of existing variables
+
+filter() unction is used to subset a data frame, retaining all rows that satisfy your conditions
+
 arrange()
+
 group_by()
