@@ -1,0 +1,22 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+install.packages("pacman")
+pacman::p_load("BiocManager", "DESeq2", "tidyverse", "edgeR", "limma", "PCAtools", "here")
+i_am("02_classes/06_differential_expression/01_script.Rmd")
+```
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+```
+
+```{r}
+ggplot(counts, aes(x=CDL_0002)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+
