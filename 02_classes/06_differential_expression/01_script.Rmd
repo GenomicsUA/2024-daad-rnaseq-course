@@ -6,8 +6,8 @@ editor_options:
 
 
 ```{r}
-install.packages("pacman")
-pacman::p_load("BiocManager", "DESeq2", "tidyverse", "edgeR", "limma", "PCAtools", "here")
+#install.packages("pacman")
+pacman::p_load("BiocManager", "DESeq2", "tidyverse", "edgeR", "limma", "PCAtools", "here", "scales")
 i_am("02_classes/06_differential_expression/01_script.Rmd")
 ```
 
@@ -20,3 +20,44 @@ ggplot(counts, aes(x=CDL_0002)) +
   geom_density(color="darkblue", fill="lightblue")
 ```
 
+```{r}
+count_vector <- as.vector(as.matrix(counts))
+
+# Step 2: Create a summary of counts
+count_summary <- count_vector %>%
+  as.data.frame() %>%
+  setNames("counts") %>%
+  group_by(counts) %>%
+  summarise(frequency = n()) %>%
+  arrange(counts)
+
+# Step 5: Plot the density with a cut-off at the break point
+ggplot(count_summary[1:50,], aes(x = counts, y = frequency, fill = frequency)) +
+  scale_y_continuous(labels = scales::comma) +
+  geom_bar(stat = "identity", width=0.7) +
+  labs(title = "Histogram of Counts vs Frequency",
+       x = "Counts",
+       y = "Frequency") +
+  scale_fill_gradient(low = "#AA05BA", mid = '#BB93C1', high = "#56B1F7") +
+  theme_minimal()
+```
+
+```{r}
+count_long <- reshape2::melt(counts[,1:4])
+
+
+# Plot individual sample distributions
+ggplot(count_long, aes(x = value)) +
+  geom_histogram(binwidth = 1, aes(y = ..density..), fill = "blue", alpha = 0.3) +
+  geom_density(color = "red") +
+  facet_wrap(~variable, scales = "free_y") +
+  scale_x_continuous(labels = scales::comma) +
+  theme_minimal() +
+  labs(title = "Distribution of Counts in Each Sample",
+       x = "Counts",
+       y = "Density") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+https://www.bioconductor.org/packages/release/workflows/vignettes/maEndToEnd/inst/doc/MA-Workflow.html#7_Background_adjustment,_calibration,_summarization_and_annotation
