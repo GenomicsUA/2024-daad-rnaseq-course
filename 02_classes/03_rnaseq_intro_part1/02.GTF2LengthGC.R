@@ -5,6 +5,7 @@
 library(GenomicRanges)
 library(rtracklayer)
 library(Rsamtools)
+library(tidyverse)
 
 #GTFfile = "../../data/Mus_musculus_c57bl6nj.C57BL_6NJ_v1.112.gtf"
 #FASTAfile = "../../data/Mus_musculus_c57bl6nj.C57BL_6NJ_v1.dna.toplevel.fa"
@@ -14,7 +15,7 @@ FASTAfile = "../../data/Mus_musculus.GRCm39.dna.toplevel.fa"
 
 # Load the annotation and reduce it
 # asRangedData = F
-GTF <- import.gff(GTFfile, format="gtf", genome="GRCh38", feature.type="exon")
+GTF <- import.gff(GTFfile, format="gtf", genome="GRCm38", feature.type="exon")
 grl <- reduce(split(GTF, elementMetadata(GTF)$gene_id))
 reducedGTF <- unlist(grl, use.names=T)
 elementMetadata(reducedGTF)$gene_id <- rep(names(grl), elementNROWS(grl))
@@ -33,7 +34,10 @@ calc_GC_length <- function(x) {
     width = sum(elementMetadata(x)$widths)
     c(width, nGCs/width)
 }
+# takes time ~ 10 min
 output <- t(sapply(split(reducedGTF, elementMetadata(reducedGTF)$gene_id), calc_GC_length))
-colnames(output) <- c("Length", "GC")
+df_output <- output %>% as.data.frame() %>% rownames_to_column("ensembl_gene_id")
 
-write.table(output, file = "../../99_technical/GC_lengths.tsv", sep="\t")
+colnames(df_output) <- c("ensembl_gene_id", "Length", "GC")
+
+write_tsv(df_output, "../../99_technical/GC_lengths.tsv")
