@@ -395,7 +395,7 @@ resTreatment_tb <- resTreatment %>%
   left_join(gene_symbol, by = c("gene" = "gene_id"))
 
 resTreatment_tb_significant <- dplyr::filter(resTreatment_tb, padj < 0.05) %>%  
-                        dplyr::filter(abs(log2FoldChange) > 1) %>% 
+                        dplyr::filter(abs(log2FoldChange) > 1.5) %>% 
                         comb_de_result_table()
 
 write_csv(resTreatment_tb_significant, "../../03_outputs/T4.TAA_results.csv")
@@ -432,7 +432,7 @@ sigTreatment_down <- rownames(resTreatment)[which(resTreatment$padj < 0.01 & res
 # Visualization - Gene example
 
 ```{r, fig.width=12, fig.height = 12}
-d <- plotCounts(dds, 
+d <- plotCounts(ddsTAA, 
                 gene = "ENSMUSG00000027204", 
                 intgroup = "treatment", 
                 returnData = TRUE)
