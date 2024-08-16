@@ -6,7 +6,7 @@ N | Дата                | Час   | Тема                               
 2 | 05.08.2024 Понеділок| 19:00 | [Вступ до R. Частина 2](https://docs.google.com/presentation/d/1sPPSTa2-ZUFkfyT61NMjs6R2njAHx3yzPoGfzz575mw/edit?usp=sharing)                                           | Валерія ВАСИЛЬЄВА                           |
 3 | 09.08.2024 П'ятниця | 19:00 | [Основи аналізу даних РНК-секвенування. Частина 1](https://docs.google.com/presentation/d/16HI66fpIQPlDhoqbL_BfyaU5vvmnQSnaUjc5bVbPFks/edit?usp=sharing)                | Сергій НАУМЕНКО                             |
 4 | 12.08.2024 Понеділок| 19:00 | [Основи аналізу даних РНК-секвенування. Частина 2](https://docs.google.com/presentation/d/16HI66fpIQPlDhoqbL_BfyaU5vvmnQSnaUjc5bVbPFks/edit?usp=sharing)                | Сергій НАУМЕНКО                             |
-5 | 16.08.2024 П'ятниця | 19:00 | Вступ до R. Частина 3                                           | Валерія ВАСИЛЬЄВА                           |
+5 | 16.08.2024 П'ятниця | 19:00 | [Вступ до R. Частина 3](https://docs.google.com/presentation/d/1HAPOBdDx4Is9rbV7eYHE1tHFHNxvls-TsGZRslinK1o/edit?usp=sharing)                                           | Валерія ВАСИЛЬЄВА                           |
 6 | 19.08.2024 Понеділок| 19:00 | Диференційна експресія. Частина 1                               | Олександр ПЕТРЕНКО                          |
 7 | 23.08.2024 П'ятниця | 19:00 | Диференційна експресія. Частина 2                               | Олександр ПЕТРЕНКО                          |
 8 | 26.08.2024 Понеділок| 19:00 | Візуалізація даних. Частина 1                                   | Олександр ШИНКАРЕНКО                        |
