@@ -1,0 +1,164 @@
+---
+title: "Differential expression 1.1 Distributions and tools"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+#install.packages("pacman")
+pacman::p_load("here", "tidyverse", "scales", "maEndToEnd", "pd.mogene.2.0.st", "oligo")
+i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
+```
+
+## RNA-seq data distribution
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+ggplot(counts, aes(x=CDL_0002)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+
+```{r}
+count_summary <- counts %>% as.matrix() %>%
+  as.vector() %>%
+  unlist() %>%
+  tibble::tibble(counts = .) %>%
+  count(counts) %>%
+  arrange(counts) %>%
+  rename(frequency = n)
+```
+
+```{r}
+ggplot(count_summary[1:50,], aes(x = counts, y = frequency, fill = frequency)) +
+  scale_y_continuous(labels = scales::comma) +
+  geom_bar(stat = "identity", width=0.7) +
+  labs(title = "Histogram of Counts vs Frequency",
+       x = "Counts",
+       y = "Frequency") +
+  scale_fill_gradient(low = "#AA05BA", high = "#56B1F7") +
+  theme_minimal()
+```
+
+## RNA array data distribution
+
+https://www.bioconductor.org/packages/release/workflows/vignettes/maEndToEnd/inst/doc/MA-Workflow.html#7_Background_adjustment,_calibration,_summarization_and_annotation
+
+```{r}
+data_dir <- here("02_classes", "06_differential_expression", "sample_datasets")
+
+celFiles <- list.celfiles(data_dir, listGzipped = TRUE, full.name=TRUE)
+affyRaw <- read.celfiles(celFiles)
+```
+
+```{r}
+library(pd.mogene.2.0.st)
+eset <- rma(affyRaw)
+```
+
+
+```{r}
+array_matrix <- exprs(eset)
+
+ggplot(array_matrix, aes(x=GSM6926882_Control_M1_.CEL.gz)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+
+## Spectral data distribution
+https://www.biorxiv.org/content/biorxiv/early/2024/01/28/2024.01.26.577493/DC2/embed/media-2.xlsx?download=true
+
+
+```{r}
+prot_data <- read.csv(here("02_classes", "06_differential_expression", "sample_datasets", "media-2.csv"))
+```
+
+```{r}
+ggplot(prot_data, aes(x=DMSO_1)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+## Tools
+
+```{r}
+pacman::p_load("limma", "edgeR", "DESeq2")
+```
+
+### limma
+
+```{r}
+# Create DGEList object
+dge <- DGEList(counts=counts)
+
+# Normalize the counts
+dge <- calcNormFactors(dge)
+
+# Design matrix
+design <- model.matrix(~ 0 + treatment, data=metadata)
+
+colnames(design) <- c("CIR", "HC", "R1", "R2")
+
+# Use voom to transform counts
+v <- voom(dge, design)
+
+# Fit the linear model using the transformed data
+fit <- lmFit(v, design)
+
+# Create contrast matrix
+contrast.matrix <- makeContrasts(CIR-HC, levels=design)
+
+# Apply contrasts
+fit2 <- contrasts.fit(fit, contrast.matrix)
+
+# Apply empirical Bayes moderation
+fit2 <- eBayes(fit2)
+
+# Get top differentially expressed genes
+top.table <- topTable(fit2, adjust="BH", number=Inf)
+
+#top.table %>% filter(logFC > abs(1.5), adj.P.Val < 0.05)
+```
+
+### edgeR
+
+```{r}
+# Create a DGEList object
+group <- factor(metadata$treatment)
+dge <- DGEList(counts=counts, group=group)
+
+# Filter out lowly expressed genes
+keep <- filterByExpr(dge)
+dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+# Normalize the data
+dge <- calcNormFactors(dge)
+
+# Create the design matrix
+design <- model.matrix(~0 + group)
+colnames(design) <- levels(group)
+
+# Estimate dispersion
+dge <- estimateDisp(dge, design)
+
+# Fit the model
+fit <- glmFit(dge, design)
+
+# Define the contrast for CIR vs HC
+contrast <- makeContrasts(CIRvsHC = CIR - HC, levels = design)
+# Perform the likelihood ratio test
+lrt <- glmLRT(fit, contrast=contrast)
+
+# Get the top differentially expressed genes
+topTags <- topTags(lrt, n = Inf)
+topGenes <- topTags$table
+
+#topGenes %>% filter(logFC > abs(1.5), FDR < 0.05)
+#write.csv(topGenes %>% filter(logFC > abs(1.5), FDR < 0.05), here("03_outputs", "06_edgeR_DE_CIRvsHC"), quote = FALSE)
+```
+
+### DESeq2 
+Let's work on that in the next script

@@ -1,0 +1,100 @@
+---
+title: "Differential expression 1.1 Distributions and tools"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+#install.packages("pacman")
+pacman::p_load("here", "tidyverse", "scales", "maEndToEnd", "pd.mogene.2.0.st", "oligo")
+i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
+```
+
+## RNA-seq data distribution
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+ggplot(counts, aes(x=CDL_0002)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+
+```{r}
+count_summary <- counts %>%
+  as.vector() %>%
+  unlist() %>%
+  tibble::tibble(counts = .) %>%
+  dplyr::count(counts) %>%
+  arrange(counts) %>%
+  rename(frequency = n)
+
+```
+
+```{r}
+ggplot(count_summary[1:50,], aes(x = counts, y = frequency, fill = frequency)) +
+  scale_y_continuous(labels = scales::comma) +
+  geom_bar(stat = "identity", width=0.7) +
+  labs(title = "Histogram of Counts vs Frequency",
+       x = "Counts",
+       y = "Frequency") +
+  scale_fill_gradient(low = "#AA05BA", high = "#56B1F7") +
+  theme_minimal()
+```
+
+## RNA array data distribution
+
+https://www.bioconductor.org/packages/release/workflows/vignettes/maEndToEnd/inst/doc/MA-Workflow.html#7_Background_adjustment,_calibration,_summarization_and_annotation
+
+```{r}
+data_dir <- here("02_classes", "06_differential_expression", "sample_datasets")
+
+celFiles <- list.celfiles(data_dir, listGzipped = TRUE, full.name=TRUE)
+affyRaw <- read.celfiles(celFiles)
+```
+
+```{r}
+eset <- rma(affyRaw)
+```
+
+
+```{r}
+
+```
+
+## Spectral data distribution
+https://www.biorxiv.org/content/biorxiv/early/2024/01/28/2024.01.26.577493/DC2/embed/media-2.xlsx?download=true
+
+
+```{r}
+prot_data <- read.csv(here("02_classes", "06_differential_expression", "sample_datasets", "media-2.csv"))
+```
+
+```{r}
+
+```
+## Tools
+
+```{r}
+pacman::p_load("limma", "edgeR", "DESeq2")
+```
+
+### limma
+
+```{r}
+
+```
+
+### edgeR
+
+```{r}
+
+```
+
+### DESeq2 
+Let's work on that in the next script
