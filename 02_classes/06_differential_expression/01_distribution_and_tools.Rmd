@@ -1,14 +1,16 @@
 ---
+title: "Differential expression 1. Distributions and tools"
 output: html_document
 editor_options: 
   chunk_output_type: console
 ---
 
+## Setup
 
 ```{r}
 #install.packages("pacman")
 pacman::p_load("BiocManager", "DESeq2", "tidyverse", "edgeR", "limma", "PCAtools", "here", "scales")
-i_am("02_classes/06_differential_expression/01_script.Rmd")
+i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
 ```
 
 ```{r}
