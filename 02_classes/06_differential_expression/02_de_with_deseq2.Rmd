@@ -1,0 +1,77 @@
+---
+title: "Differential expression 1.2 Differential expression using DESeq2"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+#install.packages("pacman")
+pacman::p_load("here", "tidyverse", "DESeq2", "ashr")
+i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
+```
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+
+```
+
+## DESeq2 object
+
+```{r}
+
+```
+## Differential testing: pairwise
+
+```{r}
+
+```
+
+## Differential testing: multigroup
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+## Visualizations
+
+```{r}
+
+```
+
