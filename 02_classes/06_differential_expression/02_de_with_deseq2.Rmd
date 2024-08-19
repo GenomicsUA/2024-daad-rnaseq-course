@@ -19,31 +19,50 @@ metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
 ```
 
 ```{r}
-metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+
 ```
 
 ## DESeq2 object
 
 ```{r}
-dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata,
-  design = ~experiment_treatment)
-dds <- DESeq(dds)
+
 ```
 ## Differential testing: pairwise
 
 ```{r}
-res <- results(dds, contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
-res_shrink <- lfcShrink(dds, type="ashr", contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
-
-res_sig <- res %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
-res_shrink_sig <- res_shrink %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
-
-res_sig
-res_shrink_sig
 
 ```
 
 ## Differential testing: multigroup
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+```
 
 ```{r}
 

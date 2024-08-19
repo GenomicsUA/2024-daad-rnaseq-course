@@ -26,14 +26,13 @@ ggplot(counts, aes(x=CDL_0002)) +
 ```
 
 ```{r}
-count_summary <- counts %>%
+count_summary <- counts %>% as.matrix() %>%
   as.vector() %>%
   unlist() %>%
   tibble::tibble(counts = .) %>%
-  dplyr::count(counts) %>%
+  count(counts) %>%
   arrange(counts) %>%
   rename(frequency = n)
-
 ```
 
 ```{r}
@@ -59,12 +58,16 @@ affyRaw <- read.celfiles(celFiles)
 ```
 
 ```{r}
+library(pd.mogene.2.0.st)
 eset <- rma(affyRaw)
 ```
 
 
 ```{r}
+array_matrix <- exprs(eset)
 
+ggplot(array_matrix, aes(x=GSM6926882_Control_M1_.CEL.gz)) +
+  geom_density(color="darkblue", fill="lightblue")
 ```
 
 ## Spectral data distribution
@@ -76,7 +79,8 @@ prot_data <- read.csv(here("02_classes", "06_differential_expression", "sample_d
 ```
 
 ```{r}
-
+ggplot(prot_data, aes(x=DMSO_1)) +
+  geom_density(color="darkblue", fill="lightblue")
 ```
 ## Tools
 
@@ -87,13 +91,73 @@ pacman::p_load("limma", "edgeR", "DESeq2")
 ### limma
 
 ```{r}
+# Create DGEList object
+dge <- DGEList(counts=counts)
 
+# Normalize the counts
+dge <- calcNormFactors(dge)
+
+# Design matrix
+design <- model.matrix(~ 0 + treatment, data=metadata)
+
+colnames(design) <- c("CIR", "HC", "R1", "R2")
+
+# Use voom to transform counts
+v <- voom(dge, design)
+
+# Fit the linear model using the transformed data
+fit <- lmFit(v, design)
+
+# Create contrast matrix
+contrast.matrix <- makeContrasts(CIR-HC, levels=design)
+
+# Apply contrasts
+fit2 <- contrasts.fit(fit, contrast.matrix)
+
+# Apply empirical Bayes moderation
+fit2 <- eBayes(fit2)
+
+# Get top differentially expressed genes
+top.table <- topTable(fit2, adjust="BH", number=Inf)
+
+#top.table %>% filter(logFC > abs(1.5), adj.P.Val < 0.05)
 ```
 
 ### edgeR
 
 ```{r}
+# Create a DGEList object
+group <- factor(metadata$treatment)
+dge <- DGEList(counts=counts, group=group)
 
+# Filter out lowly expressed genes
+keep <- filterByExpr(dge)
+dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+# Normalize the data
+dge <- calcNormFactors(dge)
+
+# Create the design matrix
+design <- model.matrix(~0 + group)
+colnames(design) <- levels(group)
+
+# Estimate dispersion
+dge <- estimateDisp(dge, design)
+
+# Fit the model
+fit <- glmFit(dge, design)
+
+# Define the contrast for CIR vs HC
+contrast <- makeContrasts(CIRvsHC = CIR - HC, levels = design)
+# Perform the likelihood ratio test
+lrt <- glmLRT(fit, contrast=contrast)
+
+# Get the top differentially expressed genes
+topTags <- topTags(lrt, n = Inf)
+topGenes <- topTags$table
+
+#topGenes %>% filter(logFC > abs(1.5), FDR < 0.05)
+#write.csv(topGenes %>% filter(logFC > abs(1.5), FDR < 0.05), here("03_outputs", "06_edgeR_DE_CIRvsHC"), quote = FALSE)
 ```
 
 ### DESeq2 

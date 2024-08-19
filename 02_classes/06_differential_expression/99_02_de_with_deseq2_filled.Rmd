@@ -1,0 +1,108 @@
+---
+title: "Differential expression 1.2 Differential expression using DESeq2"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+#install.packages("pacman")
+pacman::p_load("here", "tidyverse", "DESeq2", "ashr")
+i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
+```
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+```
+
+## DESeq2 object
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata,
+  design = ~experiment_treatment)
+dds <- DESeq(dds)
+```
+## Differential testing: pairwise
+
+```{r}
+res <- results(dds, contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
+res_shrink <- lfcShrink(dds, type="ashr", contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
+
+res_sig <- res %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
+res_shrink_sig <- res_shrink %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
+
+res_sig
+res_shrink_sig
+
+```
+
+## Differential testing: multigroup
+
+```{r}
+dds_lrt <- DESeq(dds, test="LRT", reduced = ~ 1)
+```
+
+```{r}
+res_intercept <- results(dds_intercept)
+
+res_intercept_tb <- res_intercept %>%
+  data.frame() %>%
+  tibble::rownames_to_column(var="gene") %>% 
+  as_tibble()
+```
+
+```{r}
+intercept_genes_sig <- res_intercept_tb %>% 
+  filter(padj < 0.05)
+
+nrow(intercept_genes_sig)
+```
+
+```{r}
+intercept_genes_sig <- intercept_genes_sig %>%
+  arrange(padj) %>%
+  head(n=3000)
+```
+
+```{r}
+intercept_preprocessed <- assay(dds_intercept)[intercept_genes_sig$gene, ]
+```
+
+
+```{r}
+intercept_preprocessed <- varianceStabilizingTransformation(intercept_preprocessed)
+```
+
+```{r}
+clusters_intercept <- degPatterns(intercept_preprocessed, metadata = metadata, time = "Group", , col=NULL)
+```
+
+```{r}
+groups_intercept <- clusters_intercept$df
+```
+
+
+## Visualizations
+
+```{r}
+ccl_all <- EnhancedVolcano(ccl4_cpos_cneg,
+                lab = rownames(ccl4_cpos_cneg),
+                x = "log2FoldChange",
+                y = "padj",
+                caption = NULL,
+                pointSize = 3.0,
+                labSize = 6.0,
+                drawConnectors = TRUE,
+                widthConnectors = 0.25,
+                max.overlaps = 10
+               ) + theme(legend.position = "none")
+
+```
+
