@@ -2,13 +2,12 @@
 title: "Differential expression 1.2 Differential expression using DESeq2"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ## Setup
 
 ```{r}
-#install.packages("pacman")
 pacman::p_load("here", "tidyverse", "DESeq2", "ashr")
 i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
 ```
@@ -19,49 +18,75 @@ metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
 ```
 
 ```{r}
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+
+unique(metadata$experiment_treatment)
 
 ```
 
 ## DESeq2 object
 
 ```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata,
+                              design = ~experiment_treatment)
 
+dds <- DESeq(dds)
 ```
+
 ## Differential testing: pairwise
 
 ```{r}
+#dds_normalized <- vst(dds)
 
+#ggplot(assay(dds_normalized), aes(x=CDL_0002)) +
+#  geom_density(color="darkblue", fill="lightblue")
+```
+
+```{r}
+res <- results(dds, contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
+
+res %>% as.data.frame() %>% filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
 ```
 
 ## Differential testing: multigroup
 
 ```{r}
-
+lrt <- DESeq(dds, test = "LRT", reduced = ~1)
 ```
 
 ```{r}
-
+res_lrt <- results(lrt)
 ```
 
 ```{r}
-
+top_3000 <- res_lrt %>% as.data.frame() %>% filter(padj < 0.05) %>% arrange(padj) %>% head(3000)
 ```
 
 ```{r}
-
+lrt_preprocessed <- assay(dds)[rownames(top_3000), ]
 ```
 
 ```{r}
+dim(lrt_preprocessed)
 
+vst() # only for DESeq2 objects
+vst_normalized_3000 <- varianceStabilizingTransformation(lrt_preprocessed)
 ```
 
 
 ```{r}
+#BiocManager::install("DEGreport")
+library(DEGreport)
 
+metadata$experiment_treatment <- as.factor(metadata$experiment_treatment)
+
+clusters <- degPatterns(vst_normalized_3000, metadata = metadata, 
+                        time = "experiment_treatment", , col = NULL)
 ```
 
 ```{r}
-
+clusters_genes <- clusters$df
+clusters_genes %>% arrange(cluster)
 ```
 
 ```{r}
@@ -72,6 +97,17 @@ metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
 ## Visualizations
 
 ```{r}
+#BiocManager::install("EnhancedVolcano")
+library(EnhancedVolcano)
+```
+```{r}
 
+volcano_df <- res %>% as.data.frame()
+volcano_df
+
+EnhancedVolcano(volcano_df,
+                lab = rownames(volcano_df),
+                x = "log2FoldChange",
+                y = "padj")
 ```
 

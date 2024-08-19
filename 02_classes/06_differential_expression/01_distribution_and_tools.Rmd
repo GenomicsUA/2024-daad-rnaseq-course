@@ -10,6 +10,7 @@ editor_options:
 ```{r}
 #install.packages("pacman")
 pacman::p_load("here", "tidyverse", "scales", "maEndToEnd", "pd.mogene.2.0.st", "oligo")
+
 i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
 ```
 
@@ -35,6 +36,13 @@ count_summary <- counts %>%
   rename(frequency = n)
 
 ```
+
+~25 000 * 48 = ...
+
+```{r}
+count_summary
+```
+
 
 ```{r}
 ggplot(count_summary[1:50,], aes(x = counts, y = frequency, fill = frequency)) +
@@ -64,8 +72,20 @@ eset <- rma(affyRaw)
 
 
 ```{r}
-
+array_matrix <- exprs(eset)
 ```
+
+```{r}
+array_matrix
+```
+
+
+```{r}
+ggplot(array_matrix, aes(x=GSM6926882_Control_M1_.CEL.gz)) +
+  geom_density(color="darkblue", fill="lightblue")
+```
+
+
 
 ## Spectral data distribution
 https://www.biorxiv.org/content/biorxiv/early/2024/01/28/2024.01.26.577493/DC2/embed/media-2.xlsx?download=true
@@ -76,7 +96,13 @@ prot_data <- read.csv(here("02_classes", "06_differential_expression", "sample_d
 ```
 
 ```{r}
+prot_data
+```
 
+
+```{r}
+ggplot(prot_data, aes(x=DMSO_1)) +
+  geom_density(color="darkblue", fill="lightblue")
 ```
 ## Tools
 
@@ -87,13 +113,57 @@ pacman::p_load("limma", "edgeR", "DESeq2")
 ### limma
 
 ```{r}
-
+unique(metadata$treatment)
 ```
 
-### edgeR
 
 ```{r}
+dge <- DGEList(counts = counts)
+dge <- calcNormFactors(dge)
+design <- model.matrix(~0 + treatment, data = metadata)
 
+colnames(design) <- c("CIR", "HC", "R1", "R2")
+
+v <- voom(dge, design)
+fit <- lmFit(v, design)
+
+contrast_matrix <- makeContrasts(CIR-HC, levels = design)
+
+fit2 <- contrasts.fit(fit, contrast_matrix)
+
+fit2 <- eBayes(fit2)
+
+top_table <- topTable(fit2, adjust = "BH", number = Inf)
+
+top_table %>% filter(adj.P.Val < 0.05, abs(logFC) > 1.5) %>% arrange(logFC)
+```
+
+```{r}
+group <- factor(metadata$treatment)
+dge <- DGEList(counts = counts, group = group)
+
+dge <- calcNormFactors(dge)
+
+
+design <- model.matrix(~0 + group)
+colnames(design) <- levels(group)
+dge <- estimateDisp(dge, design)
+
+fit <- glmFit(dge, design)
+
+contrast <- makeContrasts(CIRvsHC = CIR - HC, levels = design)
+# Perform the likelihood ratio test
+lrt <- glmLRT(fit, contrast=contrast)
+
+# Get the top differentially expressed genes
+topTags <- topTags(lrt, n = Inf)
+topGenes <- topTags$table
+
+edger_de <- topGenes %>% filter(FDR < 0.05, abs(logFC) > 1.5) %>% arrange(desc(logFC))
+
+edger_de
+
+write.csv(edger_de, here("03_outputs", "06_edgeR_DE_CIRvsHC.csv"))
 ```
 
 ### DESeq2 
