@@ -1,0 +1,133 @@
+---
+title: "Differential expression 1.4 DE comparison"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "tidyverse", "gridExtra", "ggvenn")
+i_am("02_classes/06_differential_expression/03_de_comparison.Rmd")
+```
+
+```{r}
+de_edger <- read.csv(here("03_outputs", "06_edgeR_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+de_limma <- read.csv(here("03_outputs", "06_limma_DE_TAACIRvsTAAHC.csv"), row.names = 1) 
+de_deseq <- read.csv(here("03_outputs", "06_deseq_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+de_deseq_ashr <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+
+df_list <- list(edgeR_DE = de_edger, limma_DE = de_limma, DESeq2_DE = de_deseq, ashr_DE = de_deseq_ashr)
+```
+
+```{r}
+de_edger <- de_edger %>% rename(log2FoldChange = logFC)
+de_limma <- de_limma %>% rename(log2FoldChange = logFC)
+```
+
+
+## Pairwise correlations
+
+```{r}
+generate_pairwise_correlation_plots <- function(df_list) {
+
+  df_list <- lapply(df_list, function(df) {
+    if ("logFC" %in% names(df)) {
+      colnames(df)[colnames(df) == "logFC"] <- "log2FoldChange"
+    }
+    df
+  })
+  
+
+  df_combinations <- combn(names(df_list), 2, simplify = FALSE)
+  
+  plot_list <- list()
+  
+  for (pair in df_combinations) {
+    df1_name <- pair[1]
+    df2_name <- pair[2]
+    
+    df1 <- df_list[[df1_name]] %>%
+      tibble::rownames_to_column(var = "gene")
+    df2 <- df_list[[df2_name]] %>%
+      tibble::rownames_to_column(var = "gene")
+  
+    merged_df <- full_join(df1, df2, by = "gene", suffix = c("_df1", "_df2"))
+
+    merged_df <- merged_df %>%
+      filter(!is.na(log2FoldChange_df1) & !is.na(log2FoldChange_df2))
+    
+
+    cor_coef <- cor(merged_df$log2FoldChange_df1, merged_df$log2FoldChange_df2)
+    
+    p <- ggplot(merged_df, aes(x = log2FoldChange_df1, y = log2FoldChange_df2)) +
+      geom_point(alpha = 0.5) +
+      geom_smooth(method = "lm", color = "blue", se = FALSE) +
+      labs(
+        x = paste("Log2 Fold Change (", df1_name, ")", sep = ""),
+        y = paste("Log2 Fold Change (", df2_name, ")", sep = ""),
+        title = paste("Correlation between", df1_name, "and", df2_name)
+      ) +
+      theme_minimal() +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+      theme(plot.title = element_text(hjust = 0.5)) +
+      annotate("text", x = Inf, y = Inf, label = paste("R =", round(cor_coef, 2)), 
+               hjust = 1.1, vjust = 1.1, size = 5, color = "black")
+    
+     plot_list[[paste(df1_name, df2_name, sep = "_vs_")]] <- p
+  }
+  
+  do.call(grid.arrange, c(plot_list, ncol = 2))
+}
+```
+
+
+```{r}
+generate_pairwise_correlation_plots(df_list)
+```
+## Venn diagrams
+
+```{r}
+limma_up <- rownames(de_limma %>% filter(log2FoldChange > 0))
+edger_up <- rownames(de_edger %>% filter(log2FoldChange > 0))
+deseq_up <- rownames(de_deseq %>% filter(log2FoldChange > 0))
+ashr_up <- rownames(de_deseq_ashr %>% filter(log2FoldChange > 0))
+
+limma_down <- rownames(de_limma %>% filter(log2FoldChange < 0))
+edger_down <- rownames(de_edger %>% filter(log2FoldChange > 0))
+deseq_down <- rownames(de_deseq %>% filter(log2FoldChange < 0))
+ashr_down <- rownames(de_deseq_ashr %>% filter(log2FoldChange < 0))
+```
+
+```{r}
+venn_1_df <- list("limma down" = limma_down,
+                       "limma up" = limma_up,
+                        "deseq up" = deseq_up,
+                        "deseq down" = deseq_down)
+
+venn_2_df <- list("edgeR down" = edger_down,
+                       "edgeR up" = edger_up,
+                        "deseq up" = deseq_up,
+                        "deseq down" = deseq_down)
+
+venn_3_df <- list("deseq2-ashr down" = ashr_down,
+                       "deseq2-ashr up" = ashr_up,
+                        "deseq2 up" = deseq_up,
+                        "deseq2 down" = deseq_down)
+
+```
+
+
+```{r}
+ggvenn(venn_1_df,
+  fill_color = c("#063852", "#063852", "#F0810F", "#F0810F"),
+  stroke_size = 0.5, set_name_size = 4)
+ggvenn(venn_2_df,
+  fill_color = c("#063852", "#063852", "#F0810F", "#F0810F"),
+  stroke_size = 0.5, set_name_size = 4)
+ggvenn(venn_3_df,
+  fill_color = c("#063852", "#063852", "#F0810F", "#F0810F"),
+  stroke_size = 0.5, set_name_size = 4)
+```
+

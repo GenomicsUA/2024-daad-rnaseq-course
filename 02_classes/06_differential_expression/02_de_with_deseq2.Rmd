@@ -45,7 +45,10 @@ dds <- DESeq(dds)
 ```{r}
 res <- results(dds, contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
 
-res %>% as.data.frame() %>% filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
+res_de <- res %>% as.data.frame() %>% filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
+
+write.csv(res_de, here("03_outputs", "06_deseq_DE_TAACIRvsTAAHC.csv"))
+write.csv(res, here("03_outputs", "06_deseq_DE_TAACIRvsTAAHC_all.csv"))
 ```
 
 ## Differential testing: multigroup
@@ -100,6 +103,7 @@ clusters_genes %>% arrange(cluster)
 #BiocManager::install("EnhancedVolcano")
 library(EnhancedVolcano)
 ```
+
 ```{r}
 
 volcano_df <- res %>% as.data.frame()

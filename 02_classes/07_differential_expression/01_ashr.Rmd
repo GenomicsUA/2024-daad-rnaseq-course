@@ -1,0 +1,46 @@
+---
+title: "Differential expression 2.1 Ashr shrinkage"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "tidyverse", "DESeq2", "ashr", "EnhancedVolcano")
+i_am("02_classes/07_differential_expression/01_ashr.Rmd")
+```
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+
+unique(metadata$experiment_treatment)
+
+```
+
+## DESeq2 analysis with ashr object
+
+```{r}
+
+```
+
+## Volcano plot and comparison with DESeq2 without ashr
+
+```{r}
+
+```
+
+### volcano plot (only DE)
+```{r}
+
+```
+
+
+
+

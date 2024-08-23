@@ -1,0 +1,544 @@
+---
+title: "Вступ до R. Частина 1"
+output:
+  word_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+#####Структура воркшопу 
+* Вправа на інтерпритацію коду
+* Зберегти і завантажити дані 
+* Дослідження даних
+* Візуалізація: на колінах і для звітів
+* Вступ до Tidyverse
+* Практична
+
+###Вправа на інтерпритацію коду
+
+Завдання:
+* поясніть код, коментуючи кожну строку чи блок коду (користуйтеся документацією/Інтернетом за потреби);
+* запустіть код;
+* підсумуйте своїми словами, що робить весь блок коду;
+* поміняйте місцями строки 69 і 71, запустіть код ще раз. Поясніть різницю у вихідних даних.
+
+Опціонально:
+* запропонуйте, як можна покращити код та/або записати його у меньшій кількості строк.
+
+```{r}
+#@function that prints how many percent of code already executed
+
+#
+percent_df <- function(num_of_itterations){
+  #
+  per<-round(num_of_itterations/10,0)
+  #
+  perdf<-data.frame(percent=sapply(seq(10, 100, by=10),function(x){paste(x,"%",sep="")}))
+  #
+  perdf$value<-NA
+  #
+  for(i in 1:10){perdf[i,"value"]<-per*i}
+  #
+  return(perdf)
+}
+#
+percent_print <- function(now_per,itterations_passed,perdf){
+  #
+  if (itterations_passed==(perdf[now_per,"value"]+1) & now_per<11){
+    print(paste(Sys.time(),perdf[now_per,"percent"]))
+    now_per<-now_per+1
+  }
+  #
+  return(now_per)
+}
+#@example of functions use
+#
+num_of_itterations<-76
+#
+perdf<-percent_df(num_of_itterations)
+#
+now_per<-1
+#
+for (i in 1:num_of_itterations){
+  #
+  if (i==1){start_time1<- Sys.time()}
+  #
+  Sys.sleep(1)
+  #
+  if (i==1){
+    end_time1 <- Sys.time()
+    diff1<-end_time1 - start_time1
+    alltime<-round(diff1*num_of_itterations,2)
+    print(paste("Estimated time of code execution is ",as.character(alltime),sep=""))
+  }
+  #
+  now_per<-percent_print(now_per,i,perdf)
+}
+#Підсумуйте значення коду
+#...
+#Місце для пояснення різниці у вихідних даних:
+#...
+```
+референс: не опублікований код лекторки.
+
+###Зберігти і завантажити дані 
+
+Давайте підемо далі і пограємо із зразком реальних даних.
+
+```{r}
+#Loads specified data sets, or list the available data sets.
+
+```
+
+Нам знадобляться декілька датасетів для різноманітності прикладів.
+
+```{r}
+#Load several data sets for later use.
+
+```
+
+
+###Зберегти і завантажити данні 
+
+Зазвичай дані, які потрібно переглянути й проаналізувати, зберігаються в текстовому файлі з розширеннями .txt, .csv, .tsv, .xlsx тощо. Розширення можуть вказувати на роздільник між стовпцями у файлі (наприклад, кома є роздільником у .csv і tab у .tsv). 
+Існують функції, призначені для читання файлів в R. Але спочатку збережемо дата фрейм **mtcars** у файли з різним розширенням. 
+> Зауважте, файли .xlsx читаються окремими пакетами, напр."readxl", який ми не розглядатимемо на семінарі.
+
+```{r}
+#write.table prints its required argument x to a file.
+# row.names = FALSE does not allow to include row names in text file.
+# sep="\t" indicates tab separator.
+
+```
+
+```{r}
+# write.csv() by default sets separator as comma (,) and dot (.) as decimal point.
+
+```
+
+Тепер файли *mtcars.tsv* і *mtcars.csv* мають з’явитися у вашому робочому каталозі. Ми можемо прочитати файл і зберегти його вміст у змінній.
+
+```{r}
+#read file. header=TRUE indicates that first row becomes column names.
+
+```
+
+###Дослідження даних
+
+Рекомендується досліджувати набір даних перед аналізом. Це дає вам розуміти дані та перевірити, чи щось з ними не так. Як приклад набору даних ми будемо використовувати *mtcars*. Запустіть наступний код і подивіться на праве нижнє вікно, щоб дізнатися більше про набір даних.
+
+```{r}
+#data set help
+
+```
+
+Перевірте розмір набору даних.
+
+```{r}
+# output: number of rows, number of columns
+
+```
+
+Для першого погляду на дані достатньо побачити назви стовпців і перші/останні рядки.
+
+```{r}
+# second argument specifies number of rows you want to display (default is 5 rows).
+
+```
+
+```{r}
+#display last rows.
+
+```
+
+Крім того, компактно відобразіть внутрішню структуру об’єкта R.
+
+```{r}
+# output: column names: data class: first 10 values.
+
+```
+
+А якщо ви хочете досліджувати дані вручну, відображайте їх у повному розмірі.
+
+```{r}
+# the window will open next to R script.
+
+```
+
+Ми хотіли б знати, чи якісь значення відсутні в даних або дублюються.
+Обидва випадки можуть спричинити оманливі результати після аналізу.
+
+```{r}
+# check if there's any NA or NaN values
+# arr.ind	- logical; should array indices be returned when x is an array?
+
+```
+
+```{r}
+# check if there blank values (no character)
+
+```
+
+```{r}
+#check if there duplicated rows
+# duplicated() determines which elements of a vector or data frame are duplicates.
+
+```
+
+Якщо ви очікуєте, що будь-який стовпець матиме категоричні значення, перевірте, чи всі категорії присутні й названі правильно, а також кількість рядків, що містять кожну з категорій.
+
+```{r}
+# unique() removes duplicated elements/rows.
+
+```
+Кількість значень кожної категорії можна легко підрахувати...
+
+```{r}
+# table() builds a contingency table of the counts.
+
+```
+
+Також можемо сортувати набір даних за стовпцями.
+
+```{r}
+#order() returns a rearranged data set with into ascending or descending order.
+
+```
+
+Ви можете зробити швидку статистичну оцінку ваших даних. Можна перевірити кожен параметр окремо (середнє, мінімальне, максимальне тощо) або всі разом.
+
+```{r}
+# by parameter
+
+```
+
+```{r}
+# all parameters
+
+```
+
+
+Ще один ефективний спосіб швидко зрозуміти дані – візуалізувати їх. Однак візуалізація також відіграє важливу роль у відображенні результатів аналізу у звітах чи статтях.
+
+###Візуалізація
+
+R base дозволяє робити прості візуалізації. Але найпопулярнішим пакетом для візуалізації біологічних даних є *ggplot2*.
+
+>*ggplot2* допомагає створювати складні графіки. Він надає гнучкіший програмний інтерфейс для контролю даних, які відображаються, того, як вони відображаються та загальних візуальних властивостей.
+
+Тут ми швидко розглянемо попередньо завантажені дані за базовими графіками R і *ggplot2*, щоб побачити різницю та приклади синтаксису.
+
+Існують такі типи простих графіків, як *діаграма розсіювання, лінійна діаграма, стовпчаста діаграма, гістограма, коробчаста діаграма, крива, хітмап*.
+
+Однією з базових функцій є plot.
+
+```{r}
+# Scatter plot shows relationship between two sets of numbers. 
+
+```
+
+*Висновок: ймовірно, залежність між зміними mpg i wt існує. Подальші висновки потребують додаткових обчислень.*
+
+Лінійна діаграма зручна, коли необхідно показати тенденцію зміни у від х або порівняти декілька зміних.
+
+```{r}
+# Line plot are useful when comparing multiple variables.
+# type="l" specifies that line should be plotted
+
+# add points to see all values.
+
+```
+
+*Висновок: тиск зростає експоненційно із зростанням температури у данному ноборі даних. (Для впевненішого висновку необхідно побудувати математичну модель)*
+
+Щоб побудувати кілька графіків разом (subplots), використовуйте наступний синтаксис.
+
+```{r}
+# par() can be used to set or query graphical parameters.
+# mfrow - vector of the form c(number of rows, columns).
+
+# hist() plots a histogram, where second argument breaks=20 means to devide the x range into 20 blocks.
+# hist() automatically adds plot title and axis labels.
+
+#dev.off shuts down the specified (by default the current) graphic. If not written, new plots will overdraw the old. Here we commented previous line to display graphics.
+```
+*Висновок: довжина зубів у кожній групі відрізняється (суттєво чи ні - справа статистичних тестів). Найчастіше зустрічаються зуби в діапозоні 25-30 мм.* 
+
+Щоб зберегти *базові* графіки як файл, додайте **extention_name_function("directory/name_of_plot.extention")**
+
+```{r}
+#also png, pdf etc.
+
+# heatmap displays numbers as degree of color transition throughout a color pallet.
+# a dendrogram is automatically add (displays resembling samples).
+
+# a good practice is to add a key to color ranges. 
+
+# rplot.jpg should appear in your working directory.
+```
+
+Синтаксис *ggplot2* відрізняється від базових графіків. Якщо базові графіки зазвичай визиваються як **plot_function(data, style_arguments)**, то ggplots є складнішими:
+**ggplot(data = <DATA>, mapping = aes(<MAPPINGS>)) + <GEOM_FUNCTION>()**
+* естетична (aes) функція бере змінні, які потрібно побудувати, і визначає, як їх представити на графіку, наприклад, у вигляді позицій x/y і таких характеристик, як розмір, форма, колір тощо.
+
+>На початку воркшопу ми вже встановили та завантажили пакет *ggplot2*.
+
+```{r}
+#load the package
+
+# blank plot
+
+```
+
+Незважаючи на те, що x і y вказані, графік є пустим. Це тому, що ggplot не припускає, що ви мали на увазі точкову діаграму або лінійну діаграму тощо, яку потрібно намалювати (без «geoms»).
+
+* додати ‘geoms’ – графічне представлення даних на графіку (точки, лінії, смуги тощо). Може бути кілька «geoms» у поєднанні з «+» таким чином, щоб відобразити кілька графіків в одному.
+   + *geom_point()* для діаграм розсіювання
+   + *geom_line()* для ліній тренду
+   + *geom_col()* для стовпчастої діаграми
+   + *geom_histogram()* для гістограм
+   + *geom_boxplot()* для бокс плот
+   + *stat_function()* для кривої
+
+
+```{r}
+#Run whole chank.
+#scatter plot
+
+#scale_colour_gradient() gives color scale to chosen variable
+```
+
+```{r}
+#box plot
+
+```
+
+```{r}
+#curve
+
+
+```
+
+**Гарно, чи не так!?**
+> Є можливість змінювати назви осей, назву, розмір графіка, колір, обертати. Але ми пропустимо ці нюанси. Щоб дізнатися більше, відвідайте https://r-graph-gallery.com/.
+
+Хоча ви можете використовувати par(), щоб зберегти ggplot як базовий графік, існує спеціальна функція з пакету *ggplot2*.
+
+```{r}
+#bar plot
+
+# Save the plot to a pdf
+
+```
+
+
+###Tidyverse
+
+Tidyverse - це набір пакетів для написання "охайного" коду. Всесвіт пакетів tidyverse - це набір пакетів, спеціально орієнтованих на data science.
+
+Більшість строк коду у цьому курсі, під час аналізу даних РНК-секвенування, написані у стилі Tidyverse.
+
+У чому принципова відмінність tidyverse i base R?
+1. Інший синтаксис
+
+>output <- processing(input)
+VS
+>input |> processing() -> output
+
+2. Спрощені команди
+3. Відмінні назви функцій з однаковим призначенням
+4. Запис декількох команд в одну строку
+
+
+Чому ми почали з base R, якщо майже весь курс на tidyverse?
+"Вступ до R" має на меті підготувати вас не тільки до транскриптомного аналізу, але і озброїти знаннями для вашого розвитку у різноманітних напрямках програмування.
+
+```{r}
+#install Tidyverse
+
+
+#if problems arise, load dplyr and readr
+
+```
+
+Зверніть увагу: якщо у вас виникли проблеми з інсталяцією *tidyverse*, блоки коду, які вимагають функцій поза завантаженими на початку семінару, позначені *#!*.
+
+> Всесвіт пакетів tidyverse - це набір пакетів, спеціально орієнтованих на data science.
+
+```{r} 
+#!
+# Display list of tidyverse packages.
+# Note, ggplot2 is also part of tidyverse
+
+```
+
+Оператор pipe **%>%** (з пакета *dplyr*) передає вихідні дані функції, застосовані до першого аргументу наступній функції. Такий спосіб об’єднання функцій дозволяє об’єднати декілька кроків одночасно, виконувати послідовні завдання.
+
+```{r}
+#Pass vector c(1,2,3,4,5) to the function mean()
+
+```
+
+Пакет *readr* спрощує читання або запис кількох форматів файлів за допомогою функцій, які починаються з read_* або write_*.
+У порівнянні з R Base функції *readr* є швидшими.
+
+```{r}
+# mtcars.csv file we created above (see "Save/write and load/read data" section).
+
+```
+
+```{r}
+# Analogically to base R, read_tsv reads .tsv files.
+
+```
+
+```{r}
+# Write data frame to file.
+
+```
+
+Імпортовані таблиці належать до класу **tibble**, сучасної версії data.frame з пакету *tibble*. Він ніколи не змінює тип вхідних даних (тобто більше не треба прописувати stringsAsFactors = FALSE).
+```{r}
+
+```
+
+І можна використовувати колонки з списками.
+```{r}
+
+```
+Дізнайтеся більше про tibble за допомогою vignette("tibble").
+
+Пакет *dplyr* надає нам граматику обробки даних, набір корисних дієслів для вирішення типових проблем. Нижче основні функції.
+
+```{r}
+#Select and rename.
+
+```
+
+```{r}
+#Filter and sort.
+# filter(data, condition1, condition2,...)
+# arrange(col) ascending, arrange(-col) descending
+
+```
+
+```{r}
+# Group and summarize.
+#group_by() takes an existing tbl and converts it into a grouped tbl where operations are performed "by group"
+#summarise() creates a new data frame. It will contain one column for each grouping variable and one column for each of the summary statistics that you have specified.
+
+```
+
+```{r}
+# Mutate
+#mutate() creates new columns that are functions of existing variables. It can also modify (if the name is the same as an existing column) and delete columns (by setting their value to NULL).
+
+```
+
+###Практика: активний пошук
+
+Знайдіть в інтернеті як виконати наступні операції через пакети tidyverse. Проведіть операцї на даних iris.
+
+```{r}
+#load iris from data()
+```
+
+```{r}
+#Combine tables
+
+```
+
+```{r}
+#Reshaping data to the 'long' format (where class-parameter-number)
+
+```
+
+```{r}
+#Extract a subset of rows without duplicate values
+
+```
+
+```{r}
+#Find rows that appear in both data frames
+```
+
+```{r}
+#Find rows that appear in first data set and not in second
+```
+
+```{r}
+#Make a new column without retaining original
+```
+
+###Опціонально: додаткові посилання
+
+1. https://style.tidyverse.org/index.html
+2. https://github.com/rstudio/cheatsheets/blob/main/data-visualization.pdf
+
+###Вивчені функції
+seq() generate regular numerical sequences
+
+Sys.time() returns the system's idea of the current date with and without time
+
+Sys.sleep() suspend execution of R expressions for a specified time interval
+
+data() loads specified data sets, or list the available data sets
+
+write.table(), write.csv()  prints its required argument x (after converting it to a data frame if it is not one nor a matrix) to a file
+
+read.table() reads a file in table format and creates a data frame from it
+
+dim() retrieve or set the dimension of an object
+
+head(), tail() returns the first or last parts of a vector, matrix, table, data frame or function
+
+str() compactly display the internal structure of an R object
+
+View() invoke a spreadsheet-style data viewer on a matrix-like R object
+
+duplicated() determines which elements of a vector or data frame are duplicates of elements, returns a logical vector
+
+unique() returns a vector, data frame or array like x but with duplicate elements/rows removed
+
+table() returns number of each element
+
+order() returns a permutation which rearranges its first argument into ascending or descending order
+
+plot()
+
+points()
+
+hist()
+
+par() can be used to set or query graphical parameters
+
+dev.off() shuts down the specified (by default the current) graph
+
+jpeg() saves a graph in jpeg format
+
+heatmap()
+
+tidyverse_packages() list all packages in the tidyverse
+
+read_csv(), read_tsv() reading the most common types of flat file data
+
+write_csv() unlike write.csv(), these functions do not include row names as a column in the written file
+
+tibble() constructs a data frame. It is used like base::data.frame(), but with a couple notable differences
+
+select() select (and optionally rename) variables in a data frame
+
+rename() changes the names of individual variables using new_name = old_name syntax
+
+mutate() creates new columns that are functions of existing variables
+
+filter() unction is used to subset a data frame, retaining all rows that satisfy your conditions
+
+arrange()
+
+group_by()

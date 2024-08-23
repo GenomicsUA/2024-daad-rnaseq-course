@@ -1,0 +1,127 @@
+---
+title: "Differential expression 2.1 Ashr shrinkage"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "tidyverse", "DESeq2", "ashr", "EnhancedVolcano")
+i_am("02_classes/07_differential_expression/01_ashr.Rmd")
+```
+
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+
+unique(metadata$experiment_treatment)
+
+```
+
+## DESeq2 analysis with ashr object
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = metadata,
+                              design = ~experiment_treatment)
+
+dds <- DESeq(dds)
+```
+
+```{r}
+res <- lfcShrink(dds, type="ashr", contrast = c("experiment_treatment", "TAA_CIR", "TAA_HC"))
+
+res %>% as.data.frame() %>% filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
+
+res_de <- res %>% as.data.frame() %>% 
+  filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
+
+write.csv(res_de, here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv"))
+```
+
+## Volcano plot and comparison with DESeq2 without ashr
+
+```{r}
+res_deseq2 <- read.csv(here("03_outputs", "06_deseq_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+res_deseq2
+```
+
+### volcano plot (only DE)
+```{r}
+EnhancedVolcano(res_deseq2,
+                lab = rownames(res_deseq2),
+                x = "log2FoldChange",
+                y = "padj")
+
+EnhancedVolcano(res_de,
+                lab = rownames(res_de),
+                x = "log2FoldChange",
+                y = "padj")
+```
+```{r}
+top_50_up_ashr <- rownames(res_de %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:50, (n() - 49):n())))
+top_50_up_deseq <- rownames(res_deseq2 %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:50, (n() - 49):n())))
+
+top_500_up_ashr <- rownames(res_de %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:500, (n() - 499):n())))
+top_500_up_deseq <- rownames(res_deseq2 %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:500, (n() - 499):n())))
+
+top_1000_up_ashr <- rownames(res_de %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:1000, (n() - 999):n())))
+top_1000_up_deseq <- rownames(res_deseq2 %>%
+  arrange(log2FoldChange) %>%
+  slice(c(1:1000, (n() - 999):n())))
+```
+
+```{r}
+setdiff(top_50_up_ashr, top_50_up_deseq)
+
+
+length(setdiff(top_50_up_ashr, top_50_up_deseq))
+length(setdiff(top_500_up_ashr, top_500_up_deseq))
+length(setdiff(top_1000_up_ashr, top_1000_up_deseq))
+```
+
+```{r}
+res_de <- res_de %>%
+  tibble::rownames_to_column(var = "gene")
+
+res_deseq2 <- res_deseq2 %>%
+  tibble::rownames_to_column(var = "gene")
+
+
+merged_df <- full_join(res_de, res_deseq2, by = "gene", suffix = c("_ashr", "_deseq2"))
+
+cor_coef <- cor(merged_df$log2FoldChange_ashr, merged_df$log2FoldChange_deseq2, use = "complete.obs")
+```
+
+```{r}
+ggplot(merged_df, aes(x = log2FoldChange_ashr, y = log2FoldChange_deseq2)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "blue", se = FALSE) +
+  labs(
+    x = "Log2 Fold Change (ashr method)",
+    y = "Log2 Fold Change (deseq2 method)",
+    title = "Correlation of Log2 Fold Changes"
+  ) +
+  theme_minimal() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  annotate("text", x = Inf, y = Inf, label = paste("R =", round(cor_coef, 2)), 
+           hjust = 1.1, vjust = 1.1, size = 5, color = "black")
+```
+
+

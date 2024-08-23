@@ -1,0 +1,471 @@
+---
+title: "Вступ до R. Частина 3"
+output:
+  word_document: default
+  pdf_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+#####Структура воркшопу 
+* Що робити з NA
+* Описова статистика і що робити із викидами (outlier)
+* Оцінка розподілу даних і підлеглості критеріям статистичних тестів
+* Трансформація
+
+
+```{r}
+#for generating correlated random numbers
+install.packages("MASS")
+#for generating missing values of different types
+install.packages("missMethods")
+#NA
+install.packages("LOCF")
+
+library(tidyverse)
+library(missMethods)
+library(MASS)
+```
+
+###Що робити з NA
+
+```{r}
+input<-c(-15, 2, 3, NA, 5, 6, 7, 8, 9, 12)
+mean(input)
+mean(input,na.rm=TRUE)
+```
+
+Не ігноруйте NA. 
+В залежності від кількості NA, ви можете вирішити чи дані зіпсовані чи їх ще можна врятувати.
+В залежності від типу NA, ви можете мати упереджений аналіз. 
+NA можуть нести важливу інформацію про ваші данні. І не тільки загублену інформацію, але й про те, чому вона загубилася.
+
+Три типи NA:
+* Missing completely at random (MCAR) - не існує систематичної різниці між спостреженням із загубленими значеннями і спостереженнями з повними даними.
+
+* Missing at random (MAR) - факт відсутності данних систематично повєязаний із типом спостережень. (може (але не обовєязково) призвести до упереджень в аналізі)
+
+* Missing not at random (MNAR) - втрата даних систематична і не пов'язана із факторами, що вимірюються дослідником.
+
+
+```{r}
+#Generate two sets of correlated random numbers
+# Define the mean vector
+mean_vector <- c(0, 0)
+# Define the covariance matrix
+cov_matrix <- matrix(c(1, 0.8, 0.8, 1), nrow = 2)
+n <- 1000
+ds_comp <- mvrnorm(n, mu = mean_vector, Sigma = cov_matrix)
+# Convert to a data frame for easier manipulation
+ds_comp <- data.frame(ds_comp)
+names(ds_comp) <- c("X", "Y")
+
+#scatterplot
+ggplot(ds_comp, aes(x = X, y = Y)) +  geom_point()
+```
+Створення різних типів NA. Сконцентружмося лише на MCAR.
+
+```{r}
+#create MCAR NAs
+ds_mcar <- delete_MCAR(ds_comp, 0.1, c("X","Y"))
+#for visualisation perposes, mask NA valoes as 0 and non-NA as 1
+ds_mcar<- ds_mcar %>% mutate(Xmask = case_when(is.na(X)== FALSE ~ 1, TRUE ~ 0)) %>% mutate(Ymask = case_when(is.na(Y)== FALSE ~ 1, TRUE ~ 0))
+```
+
+```{r}
+#MAR
+#Missing value in “X”, if the y-value is below the 30 % quantile of “Y”
+ds_mar <- delete_MAR_censoring(ds_comp, 0.3, "X", cols_ctrl = "Y")
+ds_mar<- ds_mar %>% mutate(Xmask = case_when(is.na(X)== FALSE ~ 1, TRUE ~ 0)) %>% mutate(Ymask = case_when(is.na(Y)== FALSE ~ 1, TRUE ~ 0))
+```
+
+```{r}
+#MNAR
+#Missing value in “X”, if the x-value is below the 30 % quantile of “X”
+ds_mnar <- delete_MNAR_censoring(ds_comp, 0.3, "X")
+ds_mnar<- ds_mnar %>% mutate(Xmask = case_when(is.na(X)== FALSE ~ 1, TRUE ~ 0)) %>% mutate(Ymask = case_when(is.na(Y)== FALSE ~ 1, TRUE ~ 0))
+```
+
+```{r}
+#simple NA visualisation
+#install.packages("naniar")
+#library(naniar)
+vis_miss(ds_mcar[,c("X","Y")])
+vis_miss(ds_mar[,c("X","Y")])
+vis_miss(ds_mnar[,c("X","Y")])
+```
+
+
+
+Якщо відсоток NA небагато і їх вилучення не суттєво вплине на аналіз, то можемо вилучити.
+
+*List elimination:* Коли змінні між собою пов'язані, видаляємо цілі строки даних. 
+```{r}
+#delete rows with NAs
+ds_mcar_omit <- na.omit(ds_mcar)
+#check how data set reduced
+dim(ds_mcar_omit)
+```
+
+Коли змінних між собою не пов'язані, вилучаємо лише NAs.
+```{r}
+#convert data frame to list, simulating independence of X and Y observations
+ds_mcar_list<-as.list(ds_mcar)
+#delete NA values
+ds_mcar_Xomit <- na.omit(ds_mcar_list$X)
+#check how data set reduced
+paste(sum(is.na(ds_mcar_Xomit)),length(ds_mcar_Xomit),sep=", ")
+```
+
+NAs також можна замінити декількома константами:
+* обране вами число
+* середнє/медіана/мода
+
+Або сусдніми значеннями:
+* попереднє невтрачене значення (carry forward)
+* середнє між пепереднім і наступним значеннями
+* рандомним значенням із тієї ж змінної даного набору даних (hot-deck imputation)
+* рандомним значенням із тієї ж змінної схожого іншого набору даних (cold-deck imputation)
+
+Або передбаченими значення:
+Відсутні значення або їх комбінації спочатку враховуються за допомогою прогнозної моделі. Далі ці передбачення замінюються із спостережуваними (комбінаціями) значень, найближчих до прогнозу.
+* Лінійна регрессія 
+* K-nearest neighbour imputation
+* тощо
+
+Який з цих методів краще? В залежності від природи вашого набору даних, різні методи можуть підходити. Спробуйте декілька, і перевірте як змінюється розподіл ваших даних.
+
+```{r}
+#Imputation with mean
+ds_mcar_meanimp <- transform(ds_mcar, X = ifelse(is.na(X), mean(X, na.rm=TRUE), X))
+#Cary forward
+ds_mcar_caryfor<-ds_mcar %>% fill(X, .direction = "up")
+#Hot-deck imputation
+#install.packages("simputation")
+library(simputation)
+ds_mcar_rhd<-impute_rhd(ds_mcar, X ~ 1)
+#Predictive mean matching (https://stefvanbuuren.name/fimd/sec-pmm.html)
+ds_mcar_pmm<-impute_pmm(ds_mcar, X ~ 1)
+```
+
+```{r}
+#combine datasets
+ds_mcar_imput<-rbind(ds_comp,ds_mcar[,c("X","Y")],ds_mcar_meanimp[,c("X","Y")],ds_mcar_caryfor[,c("X","Y")],ds_mcar_rhd[,c("X","Y")],ds_mcar_pmm[,c("X","Y")])
+ds_mcar_imput$imput_method<-unlist(lapply(c("full","orig_MCAR","mean_imput","cary_forward","random_hd","pmm"),rep,times=100))
+#
+ggplot(ds_mcar_imput, aes(x = imput_method, y = X, fill=factor(imput_method)))+geom_violin(draw_quantiles = c(0.25, 0.5, 0.75),na.rm = TRUE)+geom_point(position = position_jitter(seed = 1, width = 0.2), alpha=0.5,na.rm = TRUE)+theme(legend.position = "none")
+#+  geom_boxplot()+geom_jitter(shape=16, position=position_jitter(0.2))
+```
+Можна помітити, що mean_input і random_hd (hot-deck) мають розподіл ближчий до повних даних (full). У той же час, cary_forward і pmm зберігають розподіл оригінальних даних (orig_MCAR), продукуючи дещо більше outliers.
+
+У нашему випадку всі чотири методи спрацювали бульш-меньш однаково, але на меньшій виборці із іншим розподілом, ефект цих методів може бути дещо інший.
+
+Ми побороли NAs: час подивитися на данні прискіпливіше.
+
+###Описова статистика і що робити із викидами (outlier)
+
+Навколо якого значення концентруються дані? Наскільки «розкидані» дані?
+
+Ми подивимося на декілька метрик.Вони можуть вам бути не зрозумілі з математичної точки зору. І це нормально, це можна вивчити пізніше. А наразі ми спробуємо зрозуміти коли ці метрики корисні.
+
+Коли використовавати середнє значення, а коли медіану?
+* "Якщо у вас порядкові дані, ви, швидше за все, захочете використовувати медіану, ніж середнє.
+* Для даних шкали інтервалів і відношень загалом прийнятним є будь-який із них. Який із них ви виберете, залежить від того, чого ви прагнете досягти в анвлізі. Середнє значення має ту перевагу, що воно використовує всю інформацію в даних, але воно дуже чутливе до екстремальних значень."
+
+```{r}
+#mean
+input1<-c(-15, 2, 3, 4, 5, 6, 7, 8, 9, 12)
+#mean is sensetive to outliers
+print(mean(input1))
+print(mean(input1[-1]))
+#median
+print(median(input1))
+print(median(input1[-1]))
+```
+* "Якщо ваші дані номінальні, вам, ймовірно, не слід використовувати ані середнє, ані медіану. Найкраще використовувати моду"
+
+```{r}
+#mode
+input2<-c("A","A","B","B","C","A","B","D","B")
+sort(table(input2))
+```
+
+* "Діапазон. Надає вам повний розподіл даних, від мінімального до максимального значення. Він дуже вразливий до викидів і, як наслідок він не часто використовується."
+```{r}
+#range() outputs the smallest and the biggest value
+#range does not indicate what values could be outliers
+range(input1)
+```
+Квантиль або 10-й процентиль набору даних — це найменше число x, при якому 10% даних менше x.
+
+Міжквартильний діапазон (IQR) обчислює різницю між 25-м квантилем і 75-м квантилем.
+
+* Міжквартильний діапазон. Повідомляє, де знаходиться «середня частина» даних. Це часто використовується.
+
+```{r}
+# get quantiles
+print(quantile(input1))
+#get IQR
+print(IQR(input1))
+```
+
+Боксплоти - один з нетривіальних способів візуалізайії даних і перший для детекції викидів.
+Він складається з "коробки", що позначає кордони міжквартильний діапазону і між цими кордонами вказує позицію медіани. А також має "вуса".
+
+Кордони вусів визначається матемотично, але якщо перше мінімальне/максимальне є меньшим за ці кордони, то вуса дотягують до цього мінімального/максимального значення.
+Довжина вусів може вказувати на помірні або екстримальні викиди.
+geom_boxplot() з дефолтом відображає помірні викиди, коли нижня границя вус = Q1 - 1.5хIQR і верхня границя = Q3 + 1.5хIQR.
+Екстримальні позначають в проміжку (Q1 - 1.5хIQR , Q3 + 1.5хIQR).
+
+Чим відрізняються ці два боксплоти?
+
+```{r,figures-side, fig.show="hold", out.width="50%"}
+input3<-c(input1,c(-12,-15.5))
+par(mfrow=c(1,2))
+ggplot(data.frame(val=input3), aes(x=1, y=val)) + geom_boxplot()
+#ggplot(data.frame(val=c((input1),c(-57)), aes(x=1, y=val)) + geom_boxplot()
+ggplot(data.frame(val=input3), aes(x=1, y=val)) +stat_summary(geom = "boxplot", fun.data = function(x) setNames(quantile(x, c(0, 0.25, 0.5, 0.75, 0.95)), c("ymin", "lower", "middle", "upper", "ymax")), position = "dodge")
+#dev.off()
+```
+
+Як виявити outliers?
+
+Повернемося до великого набору даних, щоб було цікаіше :)
+
+```{r}
+ggplot(ds_comp, aes(x=1, y=X)) + geom_boxplot()
+```
+
+```{r}
+#by quantile
+lower_bound <- quantile(ds_comp$X, 0.025)
+upper_bound <- quantile(ds_comp$X, 0.975)
+outliers_q <- ds_comp$X[(ds_comp$X < lower_bound | ds_comp$X > upper_bound)]
+length(outliers_q)
+#Hampel filter
+lower_bound <- median(ds_comp$X) - 3 * mad(ds_comp$X, constant = 1)
+upper_bound <- median(ds_comp$X) + 3 * mad(ds_comp$X, constant = 1)
+outlier_hf <- ds_comp$X[(ds_comp$X < lower_bound | ds_comp$X > upper_bound)]
+length(outlier_hf)
+#Statistical tests, Rosner’s test best for n>=20 (there also Dixon and Grubbs test for small samples)
+#install.packages("EnvStats")
+library(EnvStats)
+test <- rosnerTest(ds_comp$X,k = 6)
+test
+```
+
+Звідки може походити outliers і що з ними робити?
+* Експерементальна помилка - можна видалити або замінти по зразку виправляння NAs;
+* Представники іншої групи (hidden variable), що можуть вплинути на упередженність аналізу. Можливо інші змінні виміряні у того ж об'єкта можуть вам підказати, чому ці значення відрізняються (наприклад, суб'єкти є різної статті).
+
+Обов'язково звітуйте про ваші дії з викидами.
+
+> Важливий висновок: завжди перевіряйте данні на наявність викидів.
+
+
+"Інший підхід полягає у виборі значущої точки відліку (зазвичай середнє значення або медіана), а потім повідомте про «типові» відхилення від цієї контрольної точки.
+
+* Середнє абсолютне відхилення. Повідомляє, наскільки далекі «в середньому» спостереження від середнього значення.
+* Дисперсія. Повідомляє середнє квадратичне відхилення від середнього. Її неможливо інтерпретувати, оскільки вона використовує не ті самі одиниці, що й дані. Майже ніколи не використовувався, крім як математичний інструмент."
+
+```{r}
+#mead absolut deviation
+AD <- abs( input1 - mean( input1 ) ) # step 2. the absolute deviations from the mean
+AAD <- mean( AD ) # step 3. the mean absolute deviations
+print( AAD )
+#madstat(input1)
+#Variance in sample
+#sum( (X-mean(X))^2 ) / (length(input1)-1)
+var(input1)
+```
+
+* "Стандартне відхилення. Це квадратний корінь із дисперсії. Він виражається в тих самих одиницях, що й дані, тому його можна досить добре інтерпретувати. У ситуаціях, коли середнє є мірою центральної тенденції, це значення за замовчуванням."
+```{r}
+#standart deviaation
+#sqrt(sum( (X-mean(X))^2 ) / (length(input1)-1))
+sd(input1)
+```
+
+*Skew and kurtosis* (Перекіс і ексцес)
+
+Skew в основному є мірою асиметрії розподілу. Праворуч - негативний перекіс, ліворуч - позитивний.
+
+Kurtosis — це міра «загостреності» набору даних.
+
+```{r}
+install.packages("moments")
+library(moments)
+print(skewness(input1))
+print(kurtosis(input1))
+```
+
+І на останок, функція яка робить все те саме для всього набору даних.
+
+```{r}
+install.packages("psych")
+library(psych)
+describe(mtcars)
+```
+
+###Оцінка розподілу даних і підлеглості критеріям статистичних тестів
+
+Велика кількість числових даних прагне до нормального розподілу.
+
+"Нормальний розподіл описується за допомогою двох параметрів,середнє значення розподілу µ та стандартне відхилення розподілу σ."
+
+```{r}
+#
+x <- seq(-4,4,by=0.2)
+m<-c(0,1,0)
+std<-c(1,1,0.5)
+ggplot(data.frame(x = x), aes(x)) + 
+  mapply(function(mean, sd, col) {
+    stat_function(fun = dnorm, args = list(mean = mean, sd = sd), col = col)
+  }, 
+  mean = m, 
+  sd = std, 
+  col = c('green','red', 'blue')
+)+theme(legend.position="top") #!!!add legend, title, coordinates probability density, observed value
+```
+Способи перевірки розподілу на нормальність:
+* Візуальний: гістограми і Q-Q графіки
+* Статистичний: Шапіро тест або Норм-тест і багато інших
+
+Шапіро тест визначає, на скільки вірогідно, що дана вибірка походить з нормально розподіленої популяції. 
+Д'Агустіно тест оцінює чи відрізняється форма розподілу від нормальної через skew & kurtosis.
+
+Занотуйте, що вибірка вважається наближеною до нормально розподілу, якщо p>0.05.   
+
+Далі продовжимо із порівнюючи змінні X i Y з даних ds_comp (вибірка із нормільно розподіленої популяції, дві змінні корелюють), та порівнюючи підгрупи mtcars "mpg" за групами "am" (0  i 1). Швидка перевірка показує, що підгрупи нормально розмоділені.
+
+```{r}
+#Shapiro test
+sh_dscomp<-shapiro.test(ds_comp$X)
+mpg_am_sh_st<-mtcars %>% group_by(am) %>% summarise(sh_st=shapiro.test(mpg)$statistic)
+mpg_am_sh_p<-mtcars %>% group_by(am) %>% summarise(sh_p=shapiro.test(mpg)$p)
+#merge results
+sh_df<-data.frame(data=c("ds_comp","mpg_am0","mtcars_am1"),statistic=c(sh_dscomp$statistic,mpg_am_sh_st$sh_st),p_value=c(sh_dscomp$p,mpg_am_sh_p$sh_p))
+
+#D'Agostino test
+#install.packages("moments")
+#library(moments)
+ag_dscomp<-agostino.test(ds_comp$X)
+mpg_am_ag_st<-mtcars %>% group_by(am) %>% summarise(sh_st=agostino.test(mpg)$statistic[1])
+mpg_am_ag_p<-mtcars %>% group_by(am) %>% summarise(sh_p=agostino.test(mpg)$p)
+#merge results
+ag_df<-data.frame(data=c("ds_comp","mtcars_am0","mtcars_am1"),skewness=c(ag_dscomp$statistic[1],mpg_am_ag_st$sh_st),p_value=c(ag_dscomp$p.value,mpg_am_ag_p$sh_p))
+```
+
+```{r}
+print(sh_df)
+```
+
+```{r}
+print(ag_df)
+```
+
+Ми маємо цікавий приклад того, як Д'Агостіно тест має протилежний результат щодо ds_comp "X" і mpg_am1.
+Це наштовхує на питання, який тест на нормальність краще використовувати. Найпопулярніший - Шапіро тест. 
+Але зауважте, що підхід спробувати декілька тестів і вибрати найкращий - це p-hacking - дуже погана практика в аналізі даних.
+
+Візуалізація даних допомагає розуміти які саме виміри відхиляються від нормального розподілу, а статистичний тест дає бінарну відповідь.
+
+
+```{r}
+data(mtcars)
+par(mfrow=c(2,3))
+hist(ds_comp$X,20)
+hist(mtcars[mtcars$am==0,"mpg"],20)
+hist(mtcars[mtcars$am==1,"mpg"],20)
+qqnorm(ds_comp$X, pch = 1, frame = FALSE)
+qqline(ds_comp$X)
+qqnorm(mtcars[mtcars$am==0,"mpg"], pch = 1, frame = FALSE)
+qqline(mtcars[mtcars$am==0,"mpg"])
+qqnorm(mtcars[mtcars$am==1,"mpg"], pch = 1, frame = FALSE)
+qqline(mtcars[mtcars$am==1,"mpg"])
+```
+
+Підсумовуючи, всі групи даних підлягають нормальному розподілу, хоча Q-Q plot mpg_am1 виглядає кривувато.
+
+Наступна вимога - рівність дисперсій (гомоскедастичність).
+
+Бартлетт тест є чутливим до відхилень від нормальності (меньч чутливий тест Levenes test). Оскільки ми впевнилися в нормальності розподілу наших даних, можумо зупинитися на ньому.
+
+```{r}
+print(bartlett.test(list(ds_comp$X,ds_comp$Y)))
+print(bartlett.test(list(mtcars[mtcars$am==0,"mpg"],mtcars[mtcars$am==1,"mpg"])))
+```
+Бачимо, що підгрупи "mpg" за "am" мають різну дисперсію, а отже t-test у цьому випадку не підходить, і вибір паде на Welch test. 
+
+Отже, три кола вимог до даних, очікувано, пройшов контрольний набір даних ds_comp.
+
+Та чи є змінні X i Y незалежними величинами? Те, що вони корелюють не обов'язково вказує на їх залежність, один від одного. Але, скажімо X і Y це метрика мутованих нуклеотидів гену розщеплення моносахариду двух конкуруючих популяцій бактерій. Чи залежні ці змінні? Мабуть так, і тоді має використовуватися paird t test. 
+Отже, остання вимога на незалежність вибірок не підлягає тестуванню і виходить із природи дослідження.
+
+```{r}
+#alternative = "two.sided" goes for a test where range of both sides of distribution is checked to be different from other one's mean.
+t.test(ds_comp$X,ds_comp$Y,alternative = "two.sided",var.equal = TRUE)
+```
+Висновок: ds_comp X i Y ймовірно походять з однієї популяції, що ми й очікували.
+
+```{r}
+t.test(mtcars[mtcars$am==0,"mpg"],mtcars[mtcars$am==1,"mpg"],alternative = "two.sided",var.equal = FALSE)
+```
+Висновок: mpg_am0 i mpg_am1 ймовірно походять з різних популяцій.
+
+
+####Трансформація даних
+
+Параметричні тести мають більше сили, тобото вони чутливі до різниць між популяціями. Тому, дослідники часто воліють трансформувати дані, або вони відповідали критеріям параметричних тестів.
+
+```{r}
+data("pressure")
+ggplot(pressure, aes(x=pressure)) + geom_histogram()+ geom_text(x=200, y=7.5, label=paste("shapiro p=",as.character(shapiro.test(pressure$pressure)$p)))
+```
+
+```{r}
+#for positevly skewed data
+p_sqrt<-sqrt(pressure$pressure)
+#for positively skewed data
+p_log<-log10(pressure$pressure) 
+#for positively skewed data
+p_inv<-1/pressure$pressure
+#
+install.packages("caret")
+library(caret)
+bc_trans <- BoxCoxTrans(pressure$pressure)
+p_bc <- predict(bc_trans, pressure$pressure)
+```
+
+Тепер оцінемо, як змінився розподіл даних та результат Шапіро тесту.
+
+```{r}
+qqnorm(pressure$pressure, pch = 1, frame = FALSE,main="Original data")
+qqline(pressure$pressure)
+text(x = -1, y = 600, label = paste("shapiro p=",as.character(shapiro.test(pressure$pressure)$p)))
+
+qqnorm(p_bc, pch = 1, frame = FALSE,main="BoxCox transformed")
+qqline(p_bc)
+text(x = -1, y = 4, label = paste("shapiro p=",as.character(shapiro.test(p_bc)$p)))
+
+qqnorm(p_log, pch = 1, frame = FALSE,,main="Log10 transformed")
+qqline(p_log)
+text(x = -1, y = 2, label = paste("shapiro p=",as.character(shapiro.test(p_log)$p)))
+
+qqnorm(p_sqrt, pch = 1, frame = FALSE,main="Sqrt transformed")
+qqline(p_sqrt)
+text(x = -1, y = 20, label = paste("shapiro p=",as.character(shapiro.test(p_sqrt)$p)))
+
+qqnorm(p_inv, pch = 1, frame = FALSE,main="Inverse transformed")
+qqline(p_inv)
+text(x = -1, y = 3000, label = paste("shapiro p=",as.character(shapiro.test(p_inv)$p)))
+```
+
+###Посилання на джерела:
+https://learningstatisticswithr.com/lsr-0.6.pdf (весь текст семінару, взятий в лапки, походить з цього джерела)
+https://statsandr.com/blog/outliers-detection-in-r/#hampel-filter
+https://www.datanovia.com/en/lessons/transform-data-to-normal-distribution-in-r/

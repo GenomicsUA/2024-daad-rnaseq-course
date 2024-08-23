@@ -19,6 +19,7 @@ i_am("02_classes/06_differential_expression/01_distribution_and_tools.Rmd")
 ```{r}
 counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
 metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
 ```
 
 ```{r}
@@ -120,14 +121,15 @@ unique(metadata$treatment)
 ```{r}
 dge <- DGEList(counts = counts)
 dge <- calcNormFactors(dge)
-design <- model.matrix(~0 + treatment, data = metadata)
+design <- model.matrix(~0 + experiment_treatment, data = metadata)
 
-colnames(design) <- c("CIR", "HC", "R1", "R2")
+colnames(design) <- c("CCL4_CIR", "CCL4_HC", "CCL4_R1", "CCL4_R2",
+                      "TAA_CIR", "TAA_HC", "TAA_R1", "TAA_R2")
 
 v <- voom(dge, design)
 fit <- lmFit(v, design)
 
-contrast_matrix <- makeContrasts(CIR-HC, levels = design)
+contrast_matrix <- makeContrasts(TAA_CIR-TAA_HC, levels = design)
 
 fit2 <- contrasts.fit(fit, contrast_matrix)
 
@@ -135,11 +137,17 @@ fit2 <- eBayes(fit2)
 
 top_table <- topTable(fit2, adjust = "BH", number = Inf)
 
-top_table %>% filter(adj.P.Val < 0.05, abs(logFC) > 1.5) %>% arrange(logFC)
+top_table_de <- top_table %>% 
+  filter(adj.P.Val < 0.05, abs(logFC) > 1.5) %>% arrange(logFC)
+
+
+write.csv(top_table_de, here("03_outputs", "06_limma_DE_TAACIRvsTAAHC.csv"))
 ```
 
+### edgeR
+
 ```{r}
-group <- factor(metadata$treatment)
+group <- factor(metadata$experiment_treatment)
 dge <- DGEList(counts = counts, group = group)
 
 dge <- calcNormFactors(dge)
@@ -151,7 +159,7 @@ dge <- estimateDisp(dge, design)
 
 fit <- glmFit(dge, design)
 
-contrast <- makeContrasts(CIRvsHC = CIR - HC, levels = design)
+contrast <- makeContrasts(TAACIRvsTAAHC = TAA_CIR - TAA_HC, levels = design)
 # Perform the likelihood ratio test
 lrt <- glmLRT(fit, contrast=contrast)
 
@@ -163,7 +171,7 @@ edger_de <- topGenes %>% filter(FDR < 0.05, abs(logFC) > 1.5) %>% arrange(desc(l
 
 edger_de
 
-write.csv(edger_de, here("03_outputs", "06_edgeR_DE_CIRvsHC.csv"))
+write.csv(edger_de, here("03_outputs", "06_edgeR_DE_TAACIRvsTAAHC.csv"))
 ```
 
 ### DESeq2 
