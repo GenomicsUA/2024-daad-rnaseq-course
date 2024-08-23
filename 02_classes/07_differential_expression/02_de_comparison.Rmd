@@ -9,7 +9,7 @@ editor_options:
 
 ```{r}
 pacman::p_load("here", "tidyverse", "gridExtra", "ggvenn")
-i_am("02_classes/06_differential_expression/03_de_comparison.Rmd")
+i_am("02_classes/06_differential_expression/02_de_comparison.Rmd")
 ```
 
 ```{r}
@@ -20,23 +20,16 @@ de_deseq_ashr <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv
 ```
 
 ```{r}
-de_edger <- de_edger %>% rename(log2FoldChange = logFC)
-de_limma <- de_limma %>% rename(log2FoldChange = logFC)
-```
+de_edger <- de_edger %>% dplyr::rename(log2FoldChange = logFC)
+de_limma <- de_limma %>% dplyr::rename(log2FoldChange = logFC)
 
+dataframes_list <- list(edgeR_DE = de_edger, limma_DE = de_limma, deseq2_DE = de_deseq, deseq2_ashr_DE = de_deseq_ashr)
+```
 
 ## Pairwise correlations
 
 ```{r}
 generate_pairwise_correlation_plots <- function(df_list) {
-
-  df_list <- lapply(df_list, function(df) {
-    if ("logFC" %in% names(df)) {
-      colnames(df)[colnames(df) == "logFC"] <- "log2FoldChange"
-    }
-    df
-  })
-  
 
   df_combinations <- combn(names(df_list), 2, simplify = FALSE)
   
@@ -76,16 +69,60 @@ generate_pairwise_correlation_plots <- function(df_list) {
      plot_list[[paste(df1_name, df2_name, sep = "_vs_")]] <- p
   }
   
-  do.call(grid.arrange, c(plot_list, ncol = 2))
+  do.call(grid.arrange, c(plot_list, ncol = 3))
 }
 ```
 
 
 ```{r}
-generate_pairwise_correlation_plots(df_list)
+generate_pairwise_correlation_plots(dataframes_list)
 ```
 ## Venn diagrams
 
 ```{r}
+limma_up <- rownames(de_limma %>% filter(log2FoldChange > 0))
+edger_up <- rownames(de_edger %>% filter(log2FoldChange > 0))
+deseq_up <- rownames(de_deseq %>% filter(log2FoldChange > 0))
+deseq_ashr_up <- rownames(de_deseq_ashr %>% filter(log2FoldChange > 0))
+
+limma_down <- rownames(de_limma %>% filter(log2FoldChange < 0))
+edger_down <- rownames(de_edger %>% filter(log2FoldChange < 0))
+deseq_down <- rownames(de_deseq %>% filter(log2FoldChange < 0))
+deseq_ashr_down <- rownames(de_deseq_ashr %>% filter(log2FoldChange < 0))
+```
+
+```{r}
+pacman::p_load("ggvenn")
+```
+
+```{r}
+venn_1_list <- list("limma down" = limma_down,
+                    "limma up" = limma_up,
+                    "deseq2 up" = deseq_up,
+                    "deseq2 down" = deseq_down)
+
+venn_2_list <- list("edger down" = edger_down,
+                    "edger up" = edger_up,
+                    "deseq2 up" = deseq_up,
+                    "deseq2 down" = deseq_down)
+
+venn_3_list <- list("deseq2-ashr down" = deseq_ashr_down,
+                    "deseq2-ashr up" = deseq_ashr_up,
+                    "deseq2 up" = deseq_up,
+                    "deseq2 down" = deseq_down)
 
 ```
+
+```{r}
+ggvenn(venn_1_list)
+
+ggvenn(venn_2_list)
+
+ggvenn(venn_3_list)```
+
+```{r}
+limma_deseq_different <- setdiff(limma_up, deseq_up)
+```
+
+
+

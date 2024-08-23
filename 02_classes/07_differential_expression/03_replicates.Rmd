@@ -1,0 +1,51 @@
+---
+title: "Differential expression 2.3 Replicates"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+pacman::p_load("here", "tidyverse", "DESeq2", "limma")
+i_am("02_classes/07_differential_expression/03_replicates.Rmd")
+```
+```{r}
+counts <- read.csv(here("01_data", "count_matrix_raw.csv"), row.names = 1)
+metadata <- read.csv(here("01_data", "metadata.csv"), row.names = 1)
+```
+
+```{r}
+metadata
+```
+```{r}
+metadata
+
+deseq = ~ experiment + treatment + experiment:treatemnt
+```
+
+
+```{r}
+counts_2 <- counts %>% select(c("CDL_0002", "CDL_0036"))
+counts_4 <- counts %>% select(c("CDL_0002", "CDL_0003", "CDL_0036", "CDL_0036"))
+
+metadata_2 <- metadata %>% filter(rownames(.) %in% c("CDL_0002", "CDL_0036"))
+metadata_4 <- metadata %>% filter(rownames(.) %in% c("CDL_0002", "CDL_0003", "CDL_0036", "CDL_0036"))
+
+metadata_2 <- metadata_2 %>% unite(experiment_treatment, c("experiment", "treatment"))
+
+metadata_4 <- metadata_4 %>% unite(experiment_treatment, c("experiment", "treatment"))
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts_4, colData = metadata_4,
+                              design = ~experiment_treatment)
+
+dds <- DESeq(dds)
+```
+```{r}
+res <- results(dds, contrast = c("experiment_treatment", "CCL4_CIR", "CCL4_HC"))
+
+res %>% as.data.frame() %>% filter(abs(log2FoldChange) > 1.5, padj < 0.05) %>% arrange(desc(log2FoldChange))
+
+```
+

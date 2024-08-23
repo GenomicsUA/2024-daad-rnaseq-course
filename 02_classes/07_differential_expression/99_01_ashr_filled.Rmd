@@ -48,7 +48,6 @@ write.csv(res_de, here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv"))
 
 ```{r}
 res_deseq2 <- read.csv(here("03_outputs", "06_deseq_DE_TAACIRvsTAAHC.csv"), row.names = 1)
-res_deseq2
 ```
 
 ### volcano plot (only DE)
@@ -63,38 +62,44 @@ EnhancedVolcano(res_de,
                 x = "log2FoldChange",
                 y = "padj")
 ```
+
 ```{r}
-top_50_up_ashr <- rownames(res_de %>%
+res_de %>%
   arrange(log2FoldChange) %>%
-  slice(c(1:50, (n() - 49):n())))
-top_50_up_deseq <- rownames(res_deseq2 %>%
-  arrange(log2FoldChange) %>%
-  slice(c(1:50, (n() - 49):n())))
+  dplyr::slice(1:50, (n() - 49):n())
+```
 
-top_500_up_ashr <- rownames(res_de %>%
-  arrange(log2FoldChange) %>%
-  slice(c(1:500, (n() - 499):n())))
-top_500_up_deseq <- rownames(res_deseq2 %>%
-  arrange(log2FoldChange) %>%
-  slice(c(1:500, (n() - 499):n())))
 
-top_1000_up_ashr <- rownames(res_de %>%
+```{r}
+top_100_ashr <- rownames(res_de %>%
   arrange(log2FoldChange) %>%
-  slice(c(1:1000, (n() - 999):n())))
-top_1000_up_deseq <- rownames(res_deseq2 %>%
+  dplyr::slice(c(1:50, (n() - 49):n())))
+top_100_deseq2 <- rownames(res_deseq2 %>%
   arrange(log2FoldChange) %>%
-  slice(c(1:1000, (n() - 999):n())))
+  dplyr::slice(c(1:50, (n() - 49):n())))
+
+top_1000_ashr <- rownames(res_de %>%
+  arrange(log2FoldChange) %>%
+  dplyr::slice(c(1:500, (n() - 499):n())))
+top_1000_deseq2 <- rownames(res_deseq2 %>%
+  arrange(log2FoldChange) %>%
+  dplyr::slice(c(1:500, (n() - 499):n())))
+
+top_2000_ashr <- rownames(res_de %>%
+  arrange(log2FoldChange) %>%
+  dplyr::slice(c(1:1000, (n() - 999):n())))
+top_2000_deseq2 <- rownames(res_deseq2 %>%
+  arrange(log2FoldChange) %>%
+  dplyr::slice(c(1:1000, (n() - 999):n())))
 ```
 
 ```{r}
-setdiff(top_50_up_ashr, top_50_up_deseq)
+setdiff(top_100_ashr, top_100_deseq2)
 
-
-length(setdiff(top_50_up_ashr, top_50_up_deseq))
-length(setdiff(top_500_up_ashr, top_500_up_deseq))
-length(setdiff(top_1000_up_ashr, top_1000_up_deseq))
+length(setdiff(top_100_ashr, top_100_deseq2))
+length(setdiff(top_1000_ashr, top_1000_deseq2))
+length(setdiff(top_2000_ashr, top_2000_deseq2))
 ```
-
 ```{r}
 res_de <- res_de %>%
   tibble::rownames_to_column(var = "gene")
