@@ -1,0 +1,234 @@
+---
+title: "Візуалізація Даних ч1."
+date: "2024-08-26"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Дані
+
+Сьогодні ми використаємо дані зі стандартного датасету iris, що присутній в кожній інсталяції мови R. Він включає в себе набір даних про квітки ірисів з характеристиками (довжина та ширина) зовнішньої та внутрішньої частини оцвітини а також вид для кожної квітки. Детальніше про нього можна прочитати тут: https://uk.wikipedia.org/wiki/Іриси_Фішера
+
+```{r iris, echo = FALSE}
+iris
+```
+
+
+# Знайомство з ggplot2 (знову)
+
+Ви вже знайомі з пакетом ggplot2, однак сьогодні ми більш детально попрацюємо з ним. ggplot2 це пакет для візуалізації даних що широко використовується для побудови графіків. Його головна особливість — модульність, завдяки якій можна легко будувати складні та візуально ефективні графіки.
+
+```{r ggplot_continuous, echo=FALSE}
+
+library(ggplot2)
+
+ggplot(data = iris, aes(x= Sepal.Length, y = Sepal.Width)) + # загрузка даних
+  geom_point(aes(col=Species)) + # точковий графік
+  geom_smooth(method = "lm", se = FALSE) + # лінія тренду, лінійний метод
+  theme(axis.text.x = element_text(angle = 45)) +  # повернути текст на лінії
+  theme_minimal() # додаємо візуальну тему до графіку
+
+```
+
+
+# ggplot2, продовження
+
+ggplot2 дає широкі можливості до кастомізації графіків, що ви можете побачити на прикладі графіку густини (density plot) нижче
+
+```{r ggplot_density, echo=FALSE}
+
+library(RColorBrewer)
+
+ggplot(data=iris, aes(x=Sepal.Width, fill=Species)) + # додавання даних
+  geom_density() + # графік густини
+  scale_fill_brewer(palette = "Set2") + # використовуємо кастомний набір кольорів
+  theme_minimal() + # додаємо візуальну тему до графіку
+  xlab("Sepal Width") + # назва осі абсций
+  ylab("Density") + # назва осі ординат
+  ggtitle("Hello there!") + # назва графіку
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1),
+        plot.title = element_text(size = 25, hjust = 0.5)) # визначаємо напрям та положення тексту
+
+
+```
+
+
+# Гістограма
+
+Всі дані поділаяються на дискретні та безперервні дані. Дискретні дані використовуються у візуалізації даних як категорії або фактори, за якими розподіляють безперервні (чисельні) дані.
+
+Одним способом з утворення нових категорій є розбивка на групи (binning), що може бути продемонстровано на прикладі 
+
+```{r histogram}
+
+#library(plyr)
+
+# sepal_means <- ddply(iris, "Species", summarise, Sepal.Width.Mean = mean(Sepal.Width)) 
+# створення датасету з середніми значеннями серед кожного виду
+
+
+sepal_means <- iris |>  group_by(Species) |>  summarise(Sepal.Width.Mean = mean(Sepal.Width))
+
+iris |> dplyr::filter(Species %in% c("setosa", "versicolor")) |>  ggplot(aes(x=Sepal.Width, fill=Species)) +
+  geom_histogram(bins = 10, position = "dodge") + #гістограма
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal() +
+  geom_vline(data=sepal_means, aes(xintercept=Sepal.Width.Mean, color=Species),
+             linetype="dashed")+
+  theme(legend.position="top")
+
+
+
+```
+
+
+
+# Boxplot
+
+Одним з ключових графіків для біоінформатики є коробковий графік, або box plot. Він дозволяє швидко оглянути набір даних. В коробковому графіку можна побачити як викиди (outliers), так і розподіл графіка на мінімальне та максимальне значення, а також медіану і перший і третій квартилі.
+
+```{r ggplot_boxplot, echo=FALSE}
+
+x <- ggplot(data=iris,  aes(x=Species, y=Sepal.Width, color = Species)) + 
+  geom_boxplot() + # коробковий графік
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal()
+
+x
+
+```
+
+
+# Інтерактивні графіки
+
+Одним з важливих особливостей використання html-формату як фінального формату для ваших репортів є можливість використання інтерактивних графіків, котрі можуть значно покращити можливість інтерпретації і комунікації результатів досліджень.
+
+``` {r interactive, echo=FALSE}
+library(plotly)
+
+ggplotly(x)
+
+```
+
+
+# Violin Plot та параметричність
+
+Хоча коробковий графік дозволяє побачити певні важливі маркери розподілу даних у наборі, він не дозволяє побачити сам розподіл. Для цього застосовується скрипковий графік (violin plot). ggplot2 також дозволяє об'єднувати декілька графіків в один для більш зручної візуалізації.
+
+Також до графіків можна додавати різну додаткову інформацію, наприклад, p-value статистичного тесту для перевірки чи статистично достовірна різниця між двома чи більше наборами даних. Для того, щоб визначити, який тест варто застосувати (параметричний t-test Ст'юдента або непараметричний тест Уілкоксона) слід перевірити чи відповідають наші набори даних нормальному розподілу. Це можливо зробити за допомогою теста Шапіро-Вілка.
+
+``` {r violin, echo=FALSE}
+library(rstatix)
+library(ggpubr)
+
+significance_df <- iris %>% group_by(Species) %>% shapiro_test(Sepal.Length) # тест Шапіро-Вілка
+
+significance_df # p-value вище 0.05 означає що розподіл нормальний
+
+
+# створюємо датафрейм з даними щодо p-value. Оскільки розподіл нормальний, то можемо використати t-test (у протилежному випадку використали б wilcox_test)
+
+pvalue_data <- iris %>%
+  t_test(Sepal.Width ~ Species) %>%
+  add_significance()
+
+pvalue <- pvalue_data %>% add_xy_position(x = "Species")
+
+iris %>%  ggplot(aes(x=Species, y=Sepal.Width, color = Species)) + 
+  geom_boxplot() +
+  geom_violin() + # скрипковий графік
+  scale_fill_brewer(palette = "Set2") +
+  theme_minimal()+
+  stat_pvalue_manual(pvalue, label = "T-test, p = {p.adj}")
+
+```
+
+# PCA
+
+Principal component analysis — це метод зменшення вимірів, що дозволяє представити багатовимірні дані на двовимірній площині. Хоча цей метод в першу чергу використовується для подальшого статистичного аналізу даних, для біоінформатиків важливий метод, який дозволяє візуально побачити складні дані, якими ми зазвичай оперуємо і подивитись, як різні категорії в розподілі групуються і відносятся одна до одної.
+
+Хоча цей метод широко використовується, він не є ідеальним і багато статистиків і біоінформатиків рекомендують заміну цьому методу, наприклад, використовуючи t-SNE.
+
+```{r pca, echo=FALSE}
+
+iris_without_categories <- iris[,1:4] # прибираємо дискретні дані
+
+df_pca <- prcomp(iris_without_categories, 
+                 scale=TRUE)
+PC1 <- df_pca$x[,1]
+PC2 <- df_pca$x[,2]
+
+summary(df_pca) # Proportion of Variance
+
+ggplot(data = iris, aes(x = PC1, y = PC2)) +
+  geom_point(aes(col=Species))+ 
+  xlab("PC1") + 
+  ylab("PC2") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+
+```
+
+# t-SNE
+
+t-distributed stochastic neighbourhood embedding — ще один метод зменшення вимірів. Цей метод в першу чергу використовується для візуалізації і може бути використаним замість PCA. Як у PCA, так і у t-SNE є ряд своїх переваг та недоліків.
+
+Так, t-SNE є рандомізованим алгоритмом, в результаті якого кожен раз коли ви його запускатимете, будете отримувати різні результати і він краще показує локальну структуру кожного з кластерів даних, аніж глобальну структуру між різними кластерами (на відміну від PCA). Однак t-SNE краще справляється з викидами (outliers) і є первинно методом візуалізації.
+
+
+``` {r tsne, echo=FALSE}
+library(Rtsne)
+
+iris_unique <- unique(iris) # t-SNE потребує, щоб в наборі даних не було повторів
+
+iris_matrix <- as.matrix(iris_unique[,1:4])
+tsne_out <- Rtsne(iris_matrix)
+tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                        y = tsne_out$Y[,2],
+                        Species = iris_unique$Species)
+
+ggplot(tsne_plot, label=Species) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2") +
+  geom_point(aes(x=x,y=y, col = Species))
+
+```
+
+
+# Діаграма Венна
+
+Діаграма Венна — один з найпростіших і більш наочних способів представлення пересічення різних наборів даних і представляє собою пересічення кол (або еліпсів) що відповідають різним комбінаціям приналежності кожної точки в розподілі до однієї або більше категорій.
+
+Діаграма Венна добре працює з малою кількістю категорій, однак втрачає свою корисність при збільшенні їх кількості
+
+``` {r venn, echo=FALSE}
+library(ggvenn)
+
+venn_sets <- list("OverMedSepLength" = rownames(iris[iris$Sepal.Length>median(iris$Sepal.Length),]),
+                        "UnderMeanSepWidth" = rownames(iris[iris$Sepal.Width<mean(iris$Sepal.Width),]),
+                        "OverMedPetWidth" = rownames(iris[iris$Petal.Width>median(iris$Petal.Width),])
+                    )
+
+ggvenn(venn_sets, set_name_size = 4, text_size = 3) +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_void()
+
+```
+
+# UpSet plot
+
+Графік типу UpSet — альтернатива діаграмі Венна, яка значно краще працює при великій кількості категорій. В цьому типу графіків пересічення категорій показуються на нижній частині у вигляді з'єднаних точок, а кількість елементів набору даних в кожному пересіченні — у вигляді стовпчиків над ціми з'єднаннями. Такі графіки широко використовуються в біоінформатиці,наприклад, для аналізу подібності і відмінності різних наборів генів.
+
+``` {r upset_plot, echo=FALSE}
+library(UpSetR)
+
+
+upset(fromList(venn_sets), order.by = "freq", sets.bar.color=c(brewer.pal(n=3, "Set2")))
+
+```
