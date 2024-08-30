@@ -1,0 +1,289 @@
+---
+title: "Візуалізація Даних, частина 2"
+date: "2024-08-30"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: united
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# 
+
+#preprocessing
+library(PCAtools)
+library(DESeq2)
+library(tidyverse)
+library(plotly)
+
+#datatable
+library(DT)
+
+#pheatmap
+library(pheatmap)
+
+#volcanoplots
+library(ggplot2)
+library(EnhancedVolcano)
+library(plotly)
+library(ggrepel)
+
+
+# Інформація щодо встановлених бібліотек
+installed_packages <- installed.packages()[names(sessionInfo()$otherPkgs), "Version"]
+installed_packages <- data.frame(names(installed_packages), installed_packages)
+r_version <- c("R",strsplit(version[['version.string']], ' ')[[1]][3])
+installed_packages <- rbind(r_version, installed_packages)
+rownames(installed_packages) <- NULL
+colnames(installed_packages) <- c("Пакет або ПЗ", "Версія")
+
+
+
+```
+
+```{r loading, echo = FALSE}
+
+counts_matrix <- read.csv("../../01_data/counts.csv", row.names = 1)
+
+metadata <- read.csv("../../01_data/metadata.csv", row.names = 1)
+metadata <- metadata %>% unite(experiment_treatment, c("experiment", "treatment"))
+
+```
+
+
+``` {r preprocessing, echo=FALSE}
+
+# pca_calculated <- pca(counts_matrix, metadata = metadata, removeVar = 0.1)
+# 
+# 
+# 
+# dds <- DESeqDataSetFromMatrix(countData = counts_matrix, colData = metadata, design = ~experiment_treatment)
+# 
+# dds_done <- DESeq(dds)
+# 
+# rld <- vst(dds, blind = TRUE)
+# 
+# saveRDS(pca_calculated, "pca_calculated.rds")
+# saveRDS(dds, "dds.rds")
+# saveRDS(dds_done, "dds_done.rds")
+# saveRDS(rld, "rld.rds")
+
+pca_calculated <- readRDS("pca_calculated.rds")
+dds <- readRDS("dds.rds")
+rld <- readRDS("rld.rds")
+dds_done <- readRDS("dds_done.rds")
+
+counts_vst_filtered <- assay(rld) %>% as.data.frame()
+
+matrix_correlations <- cor(counts_vst_filtered)
+
+```
+
+
+# Вступ
+
+Вступ — це важлива частина вашого репорту. Тут слід зазначити загальні відомості про датасет, який ви аналізуєте, мету вашого аналізу та ваші методи.
+
+Щодо відомостей про датасет, слід вказати не тільки що там знаходиться, а й як він був отриманий (методи та матеріали) та, за можливості та необхідності, вказати на іншу релевантну інформацію.
+
+Щодо методів, релевантно зазначити версії пакетів, що використовувались при аналізі. Це можна зробити наприклад за допомогою функції datatable з пакету DT.
+
+```{r datatable_packages, echo=FALSE}
+
+datatable(installed_packages, extensions = "Buttons", options = list(dom = 'Blfrtip',
+                           buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+                           
+
+```
+
+Також слід надати інформацію щодо метаданих вашого датасету.
+
+
+```{r datatable_metadata, echo=FALSE}
+
+datatable(metadata, extensions = "Buttons", options = list(dom = 'Blfrtip',
+                           buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))
+
+```
+
+
+# Контроль якості
+
+Важливим етапом в створенні репорту є QC (Quality Control, контроль якості). Для RNA-Seq даних на етапі count matrix є декілька способів як можна візуалізувати наші дані для того, щоб перевірити якість наших даних.
+
+## PCA
+
+З першим з них ми вже знайомі — це Principal Component Analysis. З ним ми можемо переглянути, як виглядають наші зразки по відношенню один до одного.
+
+```{r pca, echo=FALSE, fig.height=6, fig.width=7}
+
+counts_matrix_transposed <-  t(counts_vst_filtered)
+
+counts_matrix_transposed <- counts_matrix_transposed[ , which(apply(counts_matrix_transposed, 2, var) != 0)] # забираємо гени з нульовою варіацією (зазвичай вони просто не експресуються)
+
+df_pca <- prcomp(counts_matrix_transposed, scale = TRUE)
+
+
+PC1 <- df_pca$x[,1]
+PC2 <- df_pca$x[,2]
+
+# summary(df_pca) # Proportion of Variance
+
+ggplot(data = metadata, aes(x = PC1, y = PC2)) +
+  geom_point(aes(col=experiment_treatment))+ 
+  xlab("PC1") + 
+  ylab("PC2") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+
+```
+
+## Heatmap
+
+Ще один з способів візуалізації кластерів нашого датасету — це heatmap. Вона показує кореляцію між точками даних в наборі даних (в нашому випадку, між зразками) і має вбудованих механізм кластеризації. За допомогою heatmap ми можемо оглянути наскільки добре наші категорії кластеризуються та підтвердити чи спростувати наші припущення чи підозри на аномалії, що ми сформували вивчаючи графік PCA.
+
+```{r pheatmap, echo=FALSE, fig.height=6, fig.width=7}
+
+
+pheatmap(matrix_correlations, annotation = metadata, show_rownames = FALSE, show_colnames = FALSE)
+
+```
+
+
+# Диференційно Експресовані Гени {.tabset}
+
+Для аналізу диференційної експресії, перше, що ми можемо зробити, це вивести список диференційно експресованих генів, а саме найбільш значущих з них (адже зазвичай у вас буде дуже багато диференційно експресованих генів). В нашому випадку ми виводиму у datatable 1000 найбільш значущих диференційно експресованих генів для кожного порівняння.
+
+```{r deg_list, echo=FALSE, fig.height=6, fig.width=5, warning = FALSE, results='asis'}
+
+results_permutations <- as.data.frame(combn(unique(as.character(dds_done$experiment_treatment)),2))
+
+
+for (i in 1:length(colnames(results_permutations))) {
+  first_treatment <- results_permutations[,i][1]
+  second_treatment <- results_permutations[,i][2]
+  
+   cat("## ", first_treatment, " vs ", second_treatment, " \n")
+  
+  res <- results(dds_done, contrast = c("experiment_treatment", first_treatment, second_treatment)) %>% as.data.frame() %>%   tibble::rownames_to_column("gene")
+  
+  res <- res[order(res$padj),]
+  res <- res[1:1000,]
+  
+  print(htmltools::tagList(DT::datatable(res, extensions = "Buttons", options = list(dom = 'Blfrtip',buttons = c('copy', 'csv', 'excel', 'pdf', 'print')))))
+  
+  cat("\n\n")
+}
+
+```
+# Volcano Plot
+
+Вулканічні графіки — доволі унікальна модифікація точкового графіку для аналізу RNA-Seq даних. В таких графіках на осі абсцис знаходиться Log2FC, а на осі ординат — p-value (зазвичай з поправкою на множинне вирівнювання), а точками виступають гени, що диференційно експресуються у вибраному порівнянні. Оскільки нас зазвичай цікавлять лише диференційно експресовані гени, то зафарбовуються зазвичай у відповідний колір (червоний або синій) лише ті гени, що проходять певні бар'єри по кожній з координатних осей.
+
+Для створення такого графіку можемо використати пакет EnchancedVolcano.
+
+Коли ви створюєте volcano plots, то вкажіть, які thresholds у вас є. В нашому випадку:
+  p.adj = 0.01
+  Log2FC = +-1.5
+
+```{r volcano, echo=FALSE, fig.height=6, fig.width=5}
+
+res <- results(dds_done, contrast = c("experiment_treatment", "CCL4_HC", "CCL4_CIR")) %>% as.data.frame() %>%   tibble::rownames_to_column("gene")
+
+EnhancedVolcano(res,
+                lab = res$gene,
+                x = "log2FoldChange",
+                y = "padj",
+                title = "CCL4_HC vs CCL4_CIR",
+                pCutoff = 0.01,
+                FCcutoff = 1.5,
+                ylim = c(0,10)) +
+  theme_minimal()
+```
+
+
+# Volcano Plot в ggplot2
+
+Хоча EnchancedVolcano і дозволяє створювати volcano plots швидко, він не працює з ggplotly, а статичні графіки в певних випадках не дуже інформативні. В таких випадках, ми можемо відтворити volcano plots в ggplot2.
+
+```{r volcano2, echo=FALSE, fig.height=6, fig.width=5, warning = FALSE}
+
+res <- res[order(res$padj),]
+
+res_top <- res[1:1000,] # без цього буде працювати повільно
+
+res_top$diff_expressed <- ifelse(res_top$log2FoldChange > 1.5, "UP", ifelse(res_top$log2FoldChange < -1.5, "DOWN", "NO"))
+
+res_top$diff_expressed <- as.factor(res_top$diff_expressed)
+
+
+vlcnplt <- ggplot(data = res_top, aes(x=log2FoldChange, y=-log10(padj), col = diff_expressed, label = gene)) +
+  geom_point() +
+  theme_minimal() +
+  scale_color_manual(values = c("blue", "black", "maroon")) + 
+  labs(title = "CCL4_HC vs CCL4_CIR") +
+  geom_text_repel() +
+  geom_vline(xintercept = c(-1.5, 1.5), col = "black") + 
+  geom_hline(yintercept = -log10(0.01), col = "black")
+
+ggplotly(vlcnplt)
+
+```
+
+
+# Volcano plots - all {.tabset}
+
+Оскільки в нашому експерименті декілька порівнянь, за допомогою \{.tabset\} ми можемо алгоритмічно створити графік для кожного порівняння.
+
+```{r volcano_3, echo=FALSE, fig.height=6, fig.width=5, warning = FALSE, results='asis'}
+
+for (i in 1:length(colnames(results_permutations))) {
+  first_treatment <- results_permutations[,i][1]
+  second_treatment <- results_permutations[,i][2]
+  
+  
+  
+  cat("## ", first_treatment, " vs ", second_treatment, " \n")
+  
+  res <- results(dds_done, contrast = c("experiment_treatment", first_treatment, second_treatment)) %>% as.data.frame() %>%   tibble::rownames_to_column("gene")
+  
+  res <- res[order(res$padj),]
+
+  res_top <- res[1:1000,]
+  
+  res_top$diff_expressed <- ifelse(res_top$log2FoldChange > 1.5, "UP", ifelse(res_top$log2FoldChange < -1.5, "DOWN", "NO"))
+  
+  res_top$diff_expressed <- as.factor(res_top$diff_expressed)
+  
+ 
+  
+  vlcnplt <- ggplot(data = res_top, aes(x=log2FoldChange, y=-log10(padj), col = diff_expressed, label = gene)) +
+    geom_point() +
+    theme_minimal() +
+    scale_color_manual(values = c("blue", "black", "maroon")) + 
+    labs(title = first_treatment) +
+    geom_text_repel() +
+    geom_vline(xintercept = c(-1.5, 1.5), col = "black") + 
+    geom_hline(yintercept = -log10(0.01), col = "black")
+  
+  # ggplotly(vlcnplt)
+  
+  print(htmltools::tagList(plotly::ggplotly(vlcnplt)))
+  
+  cat("\n\n")
+  
+}
+
+```
+
+# Функціональний аналіз
+
+Ви проходитимите тему функціонального аналізу наступного тижня, тому в цьому файлі не включені типові візуалізації з цієї теми, однак якщо ви у вашому груповому проекті проводитимите такий аналіз, то слід вкючити до репорту відповідні візуалізації.
+
+# Висновки
+
+В кінці кожного репорту важливо вказати ваші висновки а також прогнозовані подальші дії щодо вашого експерименту або дослідження, якщо такі дії є. Вцілому, структура репорту в багатьох моментах нагадує структуру академічної статті.
