@@ -1,0 +1,120 @@
+---
+title: "Functional_analysis"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Встановити пакети
+
+```{r}
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("biomaRt")
+library(biomaRt)
+library(data.table)
+
+```
+
+
+Ознайомитись з функціями та базами Biomart
+
+
+```{r}
+listMarts()
+ensembl <- useMart("ensembl")
+
+
+ensembl <- useDataset("hsapiens_gene_ensembl", mart = ensembl)
+
+listAttributes(ensembl)
+```
+
+
+```{r}
+unique(listAttributes(ensembl)$name)
+```
+
+
+```{r}
+unique(listAttributes(ensembl)$page)
+```
+
+
+```{r}
+attributes_biomart <- as.data.frame(listAttributes(ensembl))
+
+attributes_biomart_feature <- attributes_biomart[attributes_biomart$page =='feature_page',]
+```
+
+Завантажити файл 
+
+```{r}
+de_tab <- read.table('https://raw.githubusercontent.com/GenomicsUA/2024-daad-rnaseq-course/main/03_outputs/effectorness_results.csv',sep=',', header = T)
+
+hist(de_tab$log2FoldChange)
+```
+
+
+```{r}
+de_tabS <- de_tab[abs(de_tab$log2FoldChange)> 6,]
+
+genes <- unique(de_tabS$symbol)
+
+#length(genes)
+```
+
+Анотація генів 
+
+```{r}
+
+attributes <- c("ensembl_gene_id", "external_gene_name", "chromosome_name", "start_position", "end_position", "strand", 'ucsc','gene_biotype')
+
+
+genes_full <- getBM(filters = "hgnc_symbol",
+               attributes =attributes,
+               values = genes,
+               mart = ensembl)
+
+
+attributes_wiki <- c('hgnc_symbol', 'protein_id','mim_gene_accession','wikigene_description','phenotype_description')
+
+
+genes_wiki <- getBM(filters = "hgnc_symbol",
+               attributes =attributes_wiki,
+               values = genes,
+               mart = ensembl)
+
+
+
+attributes_phenotype<- c('hgnc_symbol','phenotype_description')
+
+
+genes_phenotype <- getBM(filters = "hgnc_symbol",
+               attributes =attributes_phenotype,
+               values = genes,
+               mart = ensembl)
+
+```
+
+
+
+
+```{r}
+alt_ids <- as.data.frame(table(genes_full$external_synonym, genes_full$hgnc_symbol))
+
+alt_ids <- alt_ids[alt_ids$Freq != 0,]
+```
+
+Завдання:
+
+1. На якій хромосомі (хромосомах) знаходиться найбільша кількість генів?
+2. Який біотип найчастіше зустрічається серед проаналізованих генів?
+3. Які хвороби/фенотипи найчастіше пов'язані з даним набором генів?
+
+
