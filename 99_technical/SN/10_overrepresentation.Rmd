@@ -1,0 +1,104 @@
+---
+title: "Functional analysis. Over-represnetation analysis"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "tidyverse", "enrichR", "gprofiler2")
+here::i_am("99_technical/SN/10_overrepresentation.Rmd")
+```
+
+```{r}
+de_results <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+```
+
+```{r}
+de_results %>% filter(padj < 0.05)
+```
+
+## enrichR
+
+https://cran.r-project.org/web/packages/enrichR/vignettes/enrichR.html
+
+```{r}
+dbs <- listEnrichrDbs()
+dbs
+```
+```{r}
+dbs <- c("WikiPathways_2019_Mouse", "Reactome_2016", "Seq_Disease_Gene_and_Drug_Signatures_from_GEO", "DisGeNET", "GO_Molecular_Function_2023", "CellMarker_2024", "DGIdb_Drug_Targets_2024")
+```
+
+```{r}
+enriched <- enrichr(rownames(de_results[1:300,] %>% filter(log2FoldChange > 0) %>%
+                               arrange(desc(log2FoldChange))), dbs)
+```
+```{r}
+enriched
+```
+
+```{r}
+
+plot_enrichr_results <- function(enrichr_results, pval_threshold = 0.05, top_n = 10, fill_column = "Combined.Score") {
+
+  filtered_results <- enrichr_results %>%
+    filter(Adjusted.P.value <= pval_threshold) %>%
+    arrange(Adjusted.P.value) %>%
+    head(top_n)
+  
+  p <- ggplot(filtered_results, aes(x = reorder(Term, -Adjusted.P.value), 
+                                    y = -log10(Adjusted.P.value), 
+                                    fill = !!sym(fill_column))) +
+    geom_bar(stat = "identity") +
+    scale_fill_gradient(low = "#00b1b1", high = "#9f0077") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = "Top Enrichment Terms",
+         x = "Enrichment Term",
+         y = "-log10(Adjusted P-value)",
+         fill = fill_column) +
+    theme(axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          plot.title = element_text(size = 16, face = "bold"))
+  
+  print(p)
+}
+```
+
+```{r}
+plot_enrichr_results(enriched$WikiPathways_2019_Mouse)
+```
+
+```{r}
+wp_example <- enriched$WikiPathways_2019_Mouse
+
+wp_example$OverlapPercentage <- sapply(strsplit(wp_example$Overlap, "/"), function(x) {
+  round(as.numeric(x[1]) / as.numeric(x[2]) * 100, 2)
+})
+```
+
+```{r}
+plot_enrichr_results(wp_example, fill_column = "OverlapPercentage")
+```
+## gProfileR
+
+https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
+
+```{r}
+gostres <- gost(query = rownames(de_results[1:300,] %>% filter(log2FoldChange > 0) %>%
+                               arrange(desc(log2FoldChange))),organism = "mmusculus",
+                                ordered_query = TRUE)
+```
+
+```{r}
+gostres$result
+```
+
+```{r}
+p <- gostplot(gostres, capped = FALSE, interactive = FALSE)
+p
+```
+
