@@ -2,7 +2,7 @@
 title: "Functional analysis. Over-represnetation analysis"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ## Setup
@@ -17,7 +17,6 @@ here::i_am("02_classes/10_functional_analysis/02_overrepresentation.Rmd")
 https://cran.r-project.org/web/packages/enrichR/vignettes/enrichR.html
 
 ```{r}
-
 plot_enrichr_results <- function(enrichr_results, pval_threshold = 0.05, top_n = 10, fill_column = "Combined.Score") {
 
   filtered_results <- enrichr_results %>%
@@ -44,11 +43,60 @@ plot_enrichr_results <- function(enrichr_results, pval_threshold = 0.05, top_n =
 }
 ```
 
+```{r}
+df <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+```
+
+```{r}
+df %>% filter(padj < 0.05)
+
+df
+```
+```{r}
+dbs <- listEnrichrDbs()
+```
+
+```{r}
+dbs
+```
+
+```{r}
+dbs <- c("WikiPathways_2019_Mouse", "Reactome_2016", "GO_Molecular_Function_2023")
+```
+
+```{r}
+df_subset <- df[1:300,]
+df_subset
+
+enrichred <- enrichr(rownames(df_subset), dbs)
+```
+```{r}
+enrichred
+```
+```{r}
+to_plot <- enrichred$WikiPathways_2019_Mouse %>% filter(Adjusted.P.value < 0.05)
+```
+
+```{r}
+plot_enrichr_results(to_plot)
+```
+
+
 ## gProfileR
 
 https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
 
 ```{r}
+gostres <- gost(rownames(df_subet), organism = "mmusculus", ordered_query = TRUE)
+```
 
+```{r}
+gostres$result
+```
+
+```{r}
+p <- gostplot(gostres, capped = FALSE, interactive = FALSE)
+
+publish_gostplot(p, highlight_terms = c("GO:0007155", "GO:0030198", "GO:0012501"))
 ```
 
