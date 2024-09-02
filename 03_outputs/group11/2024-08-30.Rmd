@@ -18,7 +18,7 @@ library(AnnotationDbi)
 ```
 
 ```{r}
-BiocManager::install("txdbmaker")
+#BiocManager::install("txdbmaker")
 library (txdbmaker)
 ```
 
@@ -39,13 +39,12 @@ library(rtracklayer)
 ```
 
 ```{r}
-gtf_file <- "C:/Users/anast/Downloads/IntroR/part1R/gencode.v46.annotation.gtf"
-
+gtf_file <- "../../data/covid_dataset/gencode.v46.annotation.gtf"
 ```
 
 ```{r}
-txdb <- makeTxDbFromGFF(gtf_file, format = "gtf")
-tx2gene <- select(txdb, keys = keys(txdb, "TXNAME"),
+txdb <- GenomicFeatures::makeTxDbFromGFF(gtf_file, format = "gtf")
+tx2gene <- ensembldb::select(txdb, keys = keys(txdb, "TXNAME"),
                   columns = c("TXNAME", "GENEID"),
                   keytype = "TXNAME")
 colnames(tx2gene) <- c("tx_id", "gene_id")
@@ -53,35 +52,50 @@ colnames(tx2gene) <- c("tx_id", "gene_id")
 ```
 
 ```{r}
-str (tx2gene)
-
+str(tx2gene)
 ```
 
 ```{r}
-dir <- "C:/Users/anast/Downloads/IntroR/part1R/kallisto"
+dir <- "../../data/covid_dataset/"
 files <- list.files(path = dir, pattern = "abundance.tsv.gz$", full.names = TRUE)
+# SRR11614663_GSM4499449_1_1.abundance.tsv.gz
+# SRR11614664_GSM4499451_1_2.abundance.tsv.gz
+# SRR11614665_GSM4499454_1b24_1.abundance.tsv.gz
+# SRR11614666_GSM4499456_1b24_2.abundance.tsv.gz
+# SRR11614667_GSM4499458_1b60_1.abundance.tsv.gz
+# SRR11614668_GSM4499460_1b60_2.abundance.tsv.gz
+# SRR11614671_GSM4499468_6a24_1.abundance.tsv.gz
+# SRR11614672_GSM4499470_6a24_2.abundance.tsv.gz
+# SRR11614673_GSM4499472_6a60_1.abundance.tsv.gz
+# SRR11614674_GSM4499475_6a60_2.abundance.tsv.gz
 sample_names <- basename(files)
 print(sample_names)
-
 print(files)
-      
 ```
+
 ```{r}
 library (tidyr)
 sampleTable <- data.frame(
   sampleID = sample_names,
-  infection = factor (c("Uninfected", "Uninfected", "SARS-CoV", "SARS-CoV", "SARS-CoV", "SARS-CoV", "SARS-CoV-2", "SARS-CoV-2", "SARS-CoV-2", "SARS-CoV-2")),  
-  time = factor(c("0h", "0h", "24h", "24h", "60h", "60h", "24h", "24h", "60h", "60h"))
+  infection = factor (c("Uninfected", "Uninfected", 
+                        "SARS-CoV", "SARS-CoV", 
+                        "SARS-CoV", "SARS-CoV", 
+                        "SARS-CoV-2", "SARS-CoV-2", "SARS-CoV-2", "SARS-CoV-2")),  
+  time = factor(c("0h", "0h", "24h", "24h", "60h", 
+                  "60h", "24h", "24h", "60h", "60h"))
 )
-sampleTable <- sampleTable %>% unite(infection_time, c("infection", "time"))
-unique (sampleTable$infection_time)
+#sampleTable <- sampleTable %>% unite(infection_time, c("infection", "time"))
+#unique (sampleTable$infection_time)
+
+sampleTable$infection <- as.factor(sampleTable$infection)
+sampleTable$time <- as.factor(sampleTable$time)
 
 ```
 
 ```{r}
 library (tximport)
 txi.kallisto <- tximport(files, type = "kallisto", tx2gene = tx2gene, ignoreAfterBar = TRUE)
-View (txi.kallisto$counts)
+#View (txi.kallisto$counts)
 ```
 ```{r}
 if (!requireNamespace("org.Hs.eg.db", quietly = TRUE)) {
@@ -120,7 +134,9 @@ library(DESeq2)
 ```
 
 ```{r}
-dds_SARS <- DESeqDataSetFromTximport (txi.kallisto, colData=sampleTable, design= ~ infection_time)
+dds_SARS <- DESeqDataSetFromTximport (txi.kallisto, 
+                                      colData=sampleTable, 
+                                      design= ~ infection + time + infection:time)
 
 dds_SARS <- DESeq(dds_SARS)
 
