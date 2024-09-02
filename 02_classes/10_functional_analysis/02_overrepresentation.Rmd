@@ -1,0 +1,54 @@
+---
+title: "Functional analysis. Over-represnetation analysis"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "tidyverse", "enrichR", "gprofiler2")
+here::i_am("02_classes/10_functional_analysis/02_overrepresentation.Rmd")
+```
+
+## enrichR
+
+https://cran.r-project.org/web/packages/enrichR/vignettes/enrichR.html
+
+```{r}
+
+plot_enrichr_results <- function(enrichr_results, pval_threshold = 0.05, top_n = 10, fill_column = "Combined.Score") {
+
+  filtered_results <- enrichr_results %>%
+    filter(Adjusted.P.value <= pval_threshold) %>%
+    arrange(Adjusted.P.value) %>%
+    head(top_n)
+  
+  p <- ggplot(filtered_results, aes(x = reorder(Term, -Adjusted.P.value), 
+                                    y = -log10(Adjusted.P.value), 
+                                    fill = !!sym(fill_column))) +
+    geom_bar(stat = "identity") +
+    scale_fill_gradient(low = "#00b1b1", high = "#9f0077") +
+    coord_flip() +
+    theme_minimal() +
+    labs(title = "Top Enrichment Terms",
+         x = "Enrichment Term",
+         y = "-log10(Adjusted P-value)",
+         fill = fill_column) +
+    theme(axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          plot.title = element_text(size = 16, face = "bold"))
+  
+  print(p)
+}
+```
+
+## gProfileR
+
+https://cran.r-project.org/web/packages/gprofiler2/vignettes/gprofiler2.html
+
+```{r}
+
+```
+
