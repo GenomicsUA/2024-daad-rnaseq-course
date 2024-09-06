@@ -1,0 +1,41 @@
+---
+title: "Functional analysis. Ranking-based enrichment"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "clusterProfiler", "biomaRt", "stats", "dplyr", 
+               "enrichplot", "europepmc")
+here::i_am("02_classes/11_functional_analysis/01_ranking_based_enrichment.Rmd")
+```
+
+```{r}
+
+ensembl <- useEnsembl(biomart = "ensembl", 
+                   dataset = "mmusculus_gene_ensembl", 
+                   mirror = "useast")
+```
+
+## GSEA with ClusterProfiler (DOSE)
+https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
+
+### GSEA
+
+
+```{r}
+
+```
+
+### Visualizations
+
+
+## Biological theme comparison
+
+```{r}
+```
+
+

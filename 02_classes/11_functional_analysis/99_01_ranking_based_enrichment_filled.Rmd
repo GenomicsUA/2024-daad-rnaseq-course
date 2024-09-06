@@ -1,0 +1,187 @@
+---
+title: "Functional analysis. Ranking-based enrichment"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "clusterProfiler", "biomaRt", "stats", "dplyr", 
+               "enrichplot", "europepmc")
+here::i_am("02_classes/11_functional_analysis/01_ranking_based_enrichment.Rmd")
+```
+
+```{r}
+
+ensembl <- useEnsembl(biomart = "ensembl", 
+                   dataset = "mmusculus_gene_ensembl", 
+                   mirror = "useast")
+```
+
+
+
+```{r}
+de_results <- read.csv(url("https://raw.githubusercontent.com/GenomicsUA/2024-daad-rnaseq-course/main/03_outputs/07_deseq_ashr_DE_TAACIRvsTAAHC.csv"), row.names = 1)
+```
+
+```{r}
+de_results <- de_results %>% 
+  mutate(ranking = (sign(log2FoldChange) * (-log10(pvalue)))) %>% 
+  arrange(desc(ranking)) %>% tibble::rownames_to_column("genes")
+```
+
+```{r}
+genes_entrez <- getBM(filters = "external_gene_name",
+             attributes = c("entrezgene_id", "external_gene_name"),
+             values = rownames(de_results),
+             mart = ensembl)
+```
+
+```{r}
+de_results <- dplyr::left_join(de_results, genes_entrez, by = c("genes" = "external_gene_name"))
+```
+
+```{r}
+de_results %>% janitor::get_dupes("entrezgene_id")
+```
+```{r}
+de_results <- de_results %>%
+  tidyr::drop_na() %>%
+  dplyr::distinct(entrezgene_id, .keep_all = TRUE)
+```
+
+## GSEA with ClusterProfiler (DOSE)
+https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
+
+### GSEA
+
+
+```{r}
+genes_list <- de_results$ranking
+names(genes_list) <- de_results$entrezgene_id
+genes_list = sort(genes_list, decreasing = TRUE)
+```
+
+```{r}
+gseWP_res_025 <- gseWP(genes_list, organism = "Mus musculus", by = "DOSE", nPerm = 1000, pvalueCutoff = 0.25)
+gseWP_res_005 <- gseWP_res_025@result %>% filter(p.adjust < 0.05)
+```
+
+```{r}
+gseKEGG(genes_list, organism = "mmu", by = "DOSE", nPerm = 1000)
+```
+
+### Visualizations
+
+```{r}
+dotplot(gseWP_res_005, showCategory=30, x = "NES", color = "NES") + ggtitle("dotplot for GSEA")
+dotplot(gseWP_res_025, showCategory=30) + ggtitle("dotplot for GSEA")
+```
+
+```{r}
+gseWP_res_025_genename <- setReadable(gseWP_res_025, 'org.Mm.eg.db', 'ENTREZID')
+
+
+p1 <- cnetplot(gseWP_res_025_genename, color.params = list(foldChange = genes_list))
+## categorySize can be scaled by 'pvalue' or 'geneNum'
+p2 <- cnetplot(gseWP_res_025_genename, categorySize="pvalue", 
+               color.params = list(foldChange = genes_list))
+
+p3 <- cnetplot(gseWP_res_025_genename, 
+               color.params = list(foldChange = genes_list), 
+               circular = TRUE, colorEdge = TRUE)
+```
+```{r}
+p1 <- cnetplot(gseWP_res_025_genename, node_label="category", 
+        cex_label_category = 1.2) 
+p2 <- cnetplot(gseWP_res_025_genename, node_label="gene", 
+        cex_label_gene = 0.8) 
+p3 <- cnetplot(gseWP_res_025_genename, node_label="all") 
+p4 <- cnetplot(gseWP_res_025_genename, node_label="none", 
+        color_category='firebrick', 
+        color_gene='steelblue') 
+cowplot::plot_grid(p1, p2, p3, p4, ncol=2, labels=LETTERS[1:4])
+```
+
+```{r}
+heatplot(gseWP_res_025_genename, foldChange=genes_list, showCategory=10)
+```
+
+```{r}
+tmp <- pairwise_termsim(gseWP_res_025_genename)
+treeplot(tmp)
+```
+
+```{r}
+p1 <- emapplot(tmp)
+p2 <- emapplot(tmp, cex_category=1.5)
+p3 <- emapplot(tmp, layout="kk")
+p4 <- emapplot(tmp, cex_category=1.5,layout="kk") 
+cowplot::plot_grid(p1, p2, p3, p4, ncol=2, labels=LETTERS[1:4])
+```
+
+```{r}
+gseaplot2(tmp, geneSetID = 1, title = tmp$Description[1])
+```
+
+```{r}
+terms <- gseWP_res_025_genename$Description[1:5]
+pmcplot(terms, 2010:2020)
+```
+
+## Biological theme comparison
+
+```{r}
+de_results_2 <- read.csv(here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC_all.csv"), row.names = 1)
+
+de_results_2 <- de_results_2 %>% tibble::rownames_to_column("genes")
+
+
+genes_entrez_2 <- getBM(filters = "external_gene_name",
+             attributes = c("entrezgene_id", "external_gene_name"),
+             values = de_results_2$genes,
+             mart = ensembl)
+
+de_results_2 <- dplyr::left_join(de_results_2, genes_entrez_2, by = c("genes" = "external_gene_name"))
+```
+```{r}
+ccl4_up <- de_results_2 %>% 
+  filter(log2FoldChange > 1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+ccl4_down <- de_results_2 %>% 
+  filter(log2FoldChange < -1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+taa_up <- de_results %>% 
+  filter(log2FoldChange > 1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+taa_down <- de_results %>% 
+  filter(log2FoldChange < -1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+```
+
+```{r}
+de_genes_all_experiments <- list("ccl4_up" = ccl4_up, "ccl4_down" = ccl4_down,
+                                 "taa_up" = taa_up, "taa_down" = taa_down)
+```
+
+```{r}
+str(de_genes_all_experiments)
+```
+
+
+```{r}
+ck <- compareCluster(geneCluster = de_genes_all_experiments, fun = "enrichPathway")
+#ck <- setReadable(ck, OrgDb = "org.Mm.eg.db", keyType="ENTREZID")
+ck
+```
+```{r}
+dotplot(ck)
+```
+
+

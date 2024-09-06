@@ -1,0 +1,53 @@
+---
+title: "Functional analysis. Topology-based analysis"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "pathview", "biomaRt", "dplyr", "STRINGdb", "igraph", "ggraph")
+here::i_am("02_classes/11_functional_analysis/02_topology_based_pathway_analysis.Rmd")
+```
+
+```{r}
+ensembl <- useEnsembl(biomart = "ensembl", 
+                   dataset = "mmusculus_gene_ensembl", 
+                   mirror = "useast")
+```
+
+
+```{r}
+de_results <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC_all.csv"), row.names = 1)
+de_results_2 <- read.csv(here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC_all.csv"), row.names = 1)
+```
+
+```{r}
+
+```
+
+
+## PathView
+
+```{r}
+```
+
+## Interactome analysis
+
+```{r}
+```
+
+
+### Community detection
+
+```{r}
+```
+
+### Top centrality nodes
+
+```{r}
+
+```
+
