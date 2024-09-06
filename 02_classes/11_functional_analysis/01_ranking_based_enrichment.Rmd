@@ -2,7 +2,7 @@
 title: "Functional analysis. Ranking-based enrichment"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ## Setup
@@ -10,15 +10,45 @@ editor_options:
 ```{r}
 pacman::p_load("here", "clusterProfiler", "biomaRt", "stats", "dplyr", 
                "enrichplot", "europepmc")
+
 here::i_am("02_classes/11_functional_analysis/01_ranking_based_enrichment.Rmd")
 ```
 
 ```{r}
-
 ensembl <- useEnsembl(biomart = "ensembl", 
                    dataset = "mmusculus_gene_ensembl", 
                    mirror = "useast")
 ```
+
+```{r}
+de_results <- read.csv(url("https://raw.githubusercontent.com/GenomicsUA/2024-daad-rnaseq-course/main/03_outputs/07_deseq_ashr_DE_TAACIRvsTAAHC_all.csv"), row.names = 1)
+
+de_results_2 <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC_all.csv"),
+                         row.names = 1)
+```
+
+```{r}
+gene_entrez <- getBM(filters = "external_gene_name",
+                     attributes = c("entrezgene_id",
+                                    "external_gene_name"),
+                     values = rownames(de_results),
+                     mart = ensembl)
+```
+
+```{r}
+de_results <- de_results %>% tibble::rownames_to_column("genes")
+
+de_results <- left_join(de_results, gene_entrez,
+                        by = c("genes" = "external_gene_name")
+                        )
+
+de_results <- de_results %>% mutate(ranking = (sign(log2FoldChange) * (-log10(pvalue))))
+
+de_results <- de_results %>% tidyr::drop_na() %>% 
+              dplyr::distinct(entrezgene_id, .keep_all = TRUE)
+```
+
+
 
 ## GSEA with ClusterProfiler (DOSE)
 https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
@@ -27,15 +57,147 @@ https://yulab-smu.top/biomedical-knowledge-mining-book/index.html
 
 
 ```{r}
+gene_list <- de_results$ranking
+names(gene_list) <- de_results$entrezgene_id
+gene_list = sort(gene_list, decreasing = TRUE)
+
+gene_list_2 <- de_results$log2FoldChange
+names(gene_list_2) <- de_results$entrezgene_id
+gene_list_2 = sort(gene_list_2, decreasing = TRUE)
+```
+
+```{r}
+de_results
+```
+
+
+```{r}
+gseWP_res_025 <- gseWP(gene_list, organism = "Mus musculus",
+                       by = "DOSE",
+                       nPerm = 1000, pvalueCutoff = 0.25)
+                       #fgsea
+                       )
+gseWP_res_025@result
+
+gseWP_res_005 <- gseWP_res_025@result %>% filter(p.adjust < 0.05)
+```
+```{r}
 
 ```
 
+
 ### Visualizations
+
+```{r}
+dotplot(gseWP_res_025, showCategory = 30) + ggtitle("dotplot for GSEA vs WikiPathways (Padj < 0.05")
+
+dotplot(gseWP_res_025, showCategory = 30, x = "NES") + ggtitle("dotplot for GSEA vs WikiPathways (Padj < 0.05")
+
+gseWP_res_025@result
+```
+
+```{r}
+gseWP_res_025_genename <- setReadable(gseWP_res_025, 'org.Mm.eg.db',
+                                      'ENTREZID')
+```
+```{r}
+cnetplot(gseWP_res_025_genename, color.params = list(foldChange = gene_list))
+
+cnetplot(gseWP_res_025_genename, categorySize = "pvalue", color.params = list(foldChange = gene_list))
+
+
+cnetplot(gseWP_res_025_genename, color.params = list(foldChange = gene_list),
+         circular = TRUE, colorEdge = TRUE)
+
+
+cnetplot(gseWP_res_025_genename, node_label="gene", 
+        cex_label_gene = 0.8) 
+```
+```{r}
+heatplot(gseWP_res_025_genename, foldChange=gene_list_2, showCategory = 5)
+```
+
+```{r}
+tmp <- pairwise_termsim(gseWP_res_025_genename)
+```
+
+```{r}
+treeplot(tmp)
+```
+
+```{r}
+emapplot(tmp)
+```
+
+```{r}
+gseaplot2(tmp, geneSetID = 1, title = tmp$Description[1])
+```
+
+```{r}
+terms <- gseWP_res_025_genename$Description[1:10]
+pmcplot(terms, 2013:2023)
+```
+
+```{r}
+gseWP_res_005
+```
 
 
 ## Biological theme comparison
+```{r}
+
+de_results_2 <- read.csv(here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC_all.csv"), row.names = 1)
+
+de_results_2 <- de_results_2 %>% tibble::rownames_to_column("genes")
+
+
+genes_entrez_2 <- getBM(filters = "external_gene_name",
+             attributes = c("entrezgene_id", "external_gene_name"),
+             values = de_results_2$genes,
+             mart = ensembl)
+
+de_results_2 <- dplyr::left_join(de_results_2, genes_entrez_2, by = c("genes" = "external_gene_name"))
+```
 
 ```{r}
+ccl4_up <- de_results_2 %>% 
+  filter(log2FoldChange > 1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+ccl4_down <- de_results_2 %>% 
+  filter(log2FoldChange < -1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+taa_up <- de_results %>% 
+  filter(log2FoldChange > 1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+taa_down <- de_results %>% 
+  filter(log2FoldChange < -1.5 & padj < 0.05) %>% 
+  pull("entrezgene_id")
+
+```
+
+```{r}
+de_genes_all_experiments <- list("ccl4_up" = ccl4_up, "ccl4_down" = ccl4_down,
+                                 "taa_up" = taa_up, "taa_down" = taa_down)
+
+str(de_genes_all_experiments)
+```
+
+```{r}
+str(de_genes_all_experiments)
+```
+
+
+```{r}
+ck <- compareCluster(geneCluster = de_genes_all_experiments, fun = "enrichPathway")
+#ck <- setReadable(ck, OrgDb = "org.Mm.eg.db", keyType="ENTREZID")
+ck
+```
+
+```{r}
+dotplot(ck)
 ```
 
 
