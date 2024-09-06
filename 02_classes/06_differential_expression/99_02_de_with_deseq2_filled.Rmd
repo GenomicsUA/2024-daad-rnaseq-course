@@ -40,7 +40,17 @@ res_shrink_sig <- res_shrink %>% as.data.frame() %>% filter(padj < 0.01, log2Fol
 
 res_sig
 res_shrink_sig
+```
 
+```{r}
+res_2 <- results(dds, contrast = c("experiment_treatment", "CCL4_CIR", "CCL4_HC"))
+res_shrink_2 <- lfcShrink(dds, type="ashr", contrast = c("experiment_treatment", "CCL4_CIR", "CCL4_HC"))
+
+res_sig_2 <- res_2 %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
+res_shrink_sig_2 <- res_shrink_2 %>% as.data.frame() %>% filter(padj < 0.01, log2FoldChange > abs(1.5))
+
+res_sig_2
+res_shrink_sig_2
 ```
 
 ## Differential testing: multigroup
@@ -104,5 +114,13 @@ ccl_all <- EnhancedVolcano(ccl4_cpos_cneg,
                 max.overlaps = 10
                ) + theme(legend.position = "none")
 
+```
+
+```{r}
+
+write.csv(res_shrink, here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC_all.csv"))
+
+write.csv(res_shrink_sig_2, here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC.csv"))
+write.csv(res_shrink_2, here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC_all.csv"))
 ```
 
