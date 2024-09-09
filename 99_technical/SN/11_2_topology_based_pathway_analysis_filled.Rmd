@@ -1,0 +1,188 @@
+---
+title: "Functional analysis. Topology-based analysis"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup
+
+```{r}
+pacman::p_load("here", "pathview", "biomaRt", "dplyr", "STRINGdb", "igraph", "ggraph")
+here::i_am("02_classes/11_functional_analysis/02_topology_based_pathway_analysis.Rmd")
+```
+
+```{r}
+ensembl <- useEnsembl(biomart = "ensembl", 
+                   dataset = "mmusculus_gene_ensembl", 
+                   mirror = "useast")
+```
+
+
+```{r}
+de_results <- read.csv(here("03_outputs", "07_deseq_ashr_DE_TAACIRvsTAAHC_all.csv"), row.names = 1)
+de_results_2 <- read.csv(here("03_outputs", "07_deseq_ashr_DE_CCL4CIRvsCCL4HC_all.csv"), row.names = 1)
+```
+
+```{r}
+genes_entrez <- getBM(filters = "external_gene_name",
+             attributes = c("entrezgene_id", "external_gene_name"),
+             values = rownames(de_results),
+             mart = ensembl)
+```
+
+```{r}
+genes_entrez
+```
+
+
+```{r}
+de_results <- de_results %>% tibble::rownames_to_column("genes")
+de_results <- dplyr::left_join(de_results, genes_entrez, by = c("genes" = "external_gene_name"))
+
+de_results_2 <- de_results_2 %>% tibble::rownames_to_column("genes")
+de_results_2 <- dplyr::left_join(de_results_2, genes_entrez, by = c("genes" = "external_gene_name"))
+```
+
+## PathView
+
+```{r}
+logFC <- de_results$log2FoldChange
+names(logFC) <- de_results$entrezgene_id
+
+logFC_2 <- de_results_2$log2FoldChange
+names(logFC_2) <- de_results_2$entrezgene_id
+```
+
+```{r}
+pathview(gene.data = logFC_2, 
+         pathway.id = "mmu04657", 
+         species = "mmu", 
+         kegg.native = T)
+```
+## Interactome analysis
+
+```{r}
+string_db <- STRINGdb$new(version="11", species=10090, score_threshold=700, input_directory="")
+```
+
+```{r}
+de_results
+```
+
+
+```{r}
+mapped_genes <- string_db$map(de_results, "genes", removeUnmappedRows = TRUE)
+```
+
+```{r}
+interactions <- string_db$get_interactions(mapped_genes$STRING_id)
+
+interactions_filtered <- interactions %>%
+  filter(combined_score > 700)
+```
+
+```{r}
+ensembl_protein_ids
+```
+
+
+```{r}
+ensembl_protein_ids <- gsub("^10090\\.", "", unique(c(interactions_filtered$from, interactions_filtered$to)))
+
+
+ensembl_to_symbol <- getBM(attributes = c("ensembl_peptide_id", "external_gene_name"),
+                           filters = "ensembl_peptide_id", 
+                           values = ensembl_protein_ids, 
+                           mart = ensembl)
+
+ensembl_to_symbol$ensembl_peptide_id <- as.character(ensembl_to_symbol$ensembl_peptide_id)
+interactions_filtered$from <- as.character(interactions_filtered$from)
+interactions_filtered$to <- as.character(interactions_filtered$to)
+
+interactions_filtered$from <- gsub("^10090\\.", "", interactions_filtered$from)
+interactions_filtered$to <- gsub("^10090\\.", "", interactions_filtered$to)
+
+interactions_filtered <- interactions_filtered %>%
+  left_join(ensembl_to_symbol, by = c("from" = "ensembl_peptide_id")) %>%
+  dplyr::rename(from_symbol = external_gene_name) %>%
+  left_join(ensembl_to_symbol, by = c("to" = "ensembl_peptide_id")) %>%
+  dplyr::rename(to_symbol = external_gene_name)
+
+interactions_filtered <- interactions_filtered %>%
+  filter(!is.na(from_symbol) & !is.na(to_symbol))
+
+interactions_filtered <- interactions_filtered %>% dplyr::select("from_symbol", "to_symbol", "combined_score") %>% 
+  dplyr::rename(from = "from_symbol", to = "to_symbol")
+```
+
+### Community detection
+
+```{r}
+graph <- graph_from_data_frame(d = interactions_filtered, directed = FALSE)
+
+graph <- simplify(graph)
+
+graph
+```
+
+```{r}
+graph <- delete_vertices(graph, V(graph)[degree(graph) < 2])
+subgraph <- induced_subgraph(graph, sample(V(graph), 2000))
+```
+
+```{r}
+communities <- cluster_louvain(subgraph)
+
+V(subgraph)$community <- communities$membership
+
+community_sizes <- sizes(communities)
+
+top_communities <- order(community_sizes, decreasing = TRUE)[1:3]
+
+vertices_to_keep <- V(subgraph)[V(subgraph)$community %in% top_communities]
+
+subgraph <- induced_subgraph(subgraph, vertices_to_keep)
+```
+
+```{r}
+ggraph(subgraph, layout = "kk") +
+  geom_edge_link(aes(edge_alpha = 0.5), show.legend = FALSE) +
+  geom_node_point(aes(color = factor(community)), size = 5) +
+  geom_node_text(aes(label = name), repel = TRUE, size = 3) +
+  theme_void() +
+  labs(color = "Top 3 сommunities based on protein-protein interactions of the differentially expressed genes")                      
+```
+
+### Top centrality nodes
+
+```{r}
+degree_centrality <- degree(subgraph)
+closeness_centrality <- closeness(subgraph)
+betweenness_centrality <- betweenness(subgraph)
+
+centrality_scores <- data.frame(
+  name = V(subgraph)$name,
+  degree = degree_centrality,
+  closeness = closeness_centrality,
+  betweenness = betweenness_centrality
+)
+
+top_degree_genes <- centrality_scores %>%
+  arrange(desc(degree)) %>%
+  head(10)
+
+top_closeness_genes <- centrality_scores %>%
+  arrange(desc(closeness)) %>%
+  head(10)
+
+top_betweenness_genes <- centrality_scores %>%
+  arrange(desc(betweenness)) %>%
+  head(10)
+
+top_degree_genes
+top_closeness_genes
+top_betweenness_genes
+
+```
+
