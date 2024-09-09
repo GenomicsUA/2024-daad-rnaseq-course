@@ -1,0 +1,203 @@
+---
+title: "sc"
+output: html_document
+date: "2024-09-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(SeuratData)
+library(Seurat)
+
+```
+
+
+```{r}
+AvailableData()
+InstallData("ifnb")
+```
+```{r}
+?ifnb
+```
+
+```{r}
+data("ifnb")
+```
+
+
+```{r}
+immunecells <- readRDS('/groups/umcg-franke-scrna/tmp01/users/umcg-mkorshevniuk/sca/bb9991a6-2532-4bad-b36f-23824bdcdc1b.rds')
+```
+
+ https://datasets.cellxgene.cziscience.com/bb9991a6-2532-4bad-b36f-23824bdcdc1b.rds
+
+ 
+
+```{r}
+VlnPlot(immunecells, features = c("nFeaturess_RNA", "nCounts_RNA", "percent_mito"), ncol = 3)
+
+```
+
+```{r}
+immunecells <- subset(immunecells, subset = nFeaturess_RNA > 200 & nFeaturess_RNA < 5000 & percent_mito < 5)
+
+```
+# Seurat 
+
+
+```{r}
+library(dplyr)
+library(Seurat)
+library(patchwork)
+```
+
+
+```{r}
+pbmc.data <- Read10X(data.dir = "/groups/umcg-franke-scrna/tmp01/users/umcg-mkorshevniuk/sca/filtered_gene_bc_matrices/hg19/")
+# Initialize the Seurat object with the raw (non-normalized data).
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+pbmc
+```
+```{r}
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+```
+
+```{r}
+pbmc <- subset(pbmc, subset = nFeature_RNA > 500 & nFeature_RNA < 3500 & percent.mt < 5)
+
+```
+
+```{r}
+pbmc <- NormalizeData(pbmc)
+
+```
+
+```{r}
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+```{r}
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+```
+
+
+```{r}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+```
+
+```{r}
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+
+```
+
+```{r}
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+
+```{r}
+all.genes <- rownames(pbmc)
+pbmc <- ScaleData(pbmc, features = all.genes)
+```
+
+
+```{r}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+
+```
+
+```{r}
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
+
+```
+
+
+```{r}
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+
+```
+
+
+```{r}
+ElbowPlot(pbmc)
+
+```
+
+```{r}
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+```
+
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+
+```
+
+
+```{r}
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE)
+pbmc.markers %>%
+    group_by(cluster) %>%
+    dplyr::filter(avg_log2FC > 1)
+```
+
+
+```{r}
+VlnPlot(pbmc, features = c("MS4A1", "CD79A"))
+
+```
+
+```{r}
+VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = "counts", log = TRUE)
+
+```
+
+```{r}
+FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP",
+    "CD8A"))
+```
+
+```{r}
+pbmc.markers %>%
+    group_by(cluster) %>%
+    dplyr::filter(avg_log2FC > 1) %>%
+    slice_head(n = 10) %>%
+    ungroup() -> top10
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+```
+
+
+```{r}
+new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
